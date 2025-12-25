@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "ATUAPJ - Frontend",
-  description: "Aplicação Next.js",
+  title: "AtuaPJ - Gestão de Profissionais PJ",
+  description: "Plataforma de gestão de profissionais PJ que ajuda empresas a organizar, acompanhar e comprovar a atuação dos seus prestadores de serviço",
 };
 
 export default function RootLayout({
