@@ -50,8 +50,8 @@ const navigation: NavItem[] = [
     ),
   },
   {
-    name: "Registros",
-    href: "/dashboard/registros",
+    name: "Minha Atuação",
+    href: "/dashboard/atuacao",
     icon: (
       <svg
         className="w-6 h-6"
