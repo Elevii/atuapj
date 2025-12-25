@@ -1,11 +1,12 @@
 "use client";
 
 import { useState, FormEvent, useEffect } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 
 export default function LoginForm() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -61,8 +62,13 @@ export default function LoginForm() {
       // TODO: Integrar com API de autenticação
       await new Promise((resolve) => setTimeout(resolve, 1500));
       console.log("Login:", { email, password });
+      // Redirecionar para o dashboard após login bem-sucedido
+      router.push("/dashboard");
     } catch (error) {
       console.error("Erro no login:", error);
+      setErrors({
+        email: "Credenciais inválidas. Tente novamente.",
+      });
     } finally {
       setIsLoading(false);
     }
