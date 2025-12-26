@@ -120,27 +120,6 @@ export default function FaturaDetalhesPage() {
 
   // Checklist logic
   const checklistItems = [
-    {
-      id: "cobrancaEnviada",
-      label: "Cobrança enviada",
-      checked: fatura.cobrancaEnviada,
-      action: () => handleUpdateStatus("cobrancaEnviada"),
-      isSystem: true,
-    },
-    {
-      id: "notaFiscalEmitida",
-      label: "Nota Fiscal emitida",
-      checked: fatura.notaFiscalEmitida,
-      action: () => handleUpdateStatus("notaFiscalEmitida"),
-      isSystem: true,
-    },
-    {
-      id: "comprovanteEnviado",
-      label: "Comprovante enviado",
-      checked: fatura.comprovanteEnviado,
-      action: () => handleUpdateStatus("comprovanteEnviado"),
-      isSystem: true,
-    },
     ...(fatura.lembretes || []).map((l: Lembrete) => ({
       id: l.id,
       label: l.titulo,
@@ -204,8 +183,8 @@ export default function FaturaDetalhesPage() {
                 fatura.status === "pago"
                   ? "bg-green-100 text-green-800"
                   : fatura.status === "atrasado"
-                  ? "bg-red-100 text-red-800"
-                  : "bg-yellow-100 text-yellow-800"
+                    ? "bg-red-100 text-red-800"
+                    : "bg-yellow-100 text-yellow-800"
               }`}
             >
               {fatura.status.toUpperCase()}

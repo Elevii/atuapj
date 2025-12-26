@@ -231,7 +231,7 @@ export default function FinanceiroPage() {
                     scope="col"
                     className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider"
                   >
-                    Lembretes
+                    Checklist
                   </th>
                   <th scope="col" className="relative px-6 py-3">
                     <span className="sr-only">Ações</span>
@@ -247,9 +247,15 @@ export default function FinanceiroPage() {
                     nearDue &&
                     !fatura.cobrancaEnviada;
 
-                  const canPay = fatura.notaFiscalEmitida;
-                  const activeReminders =
-                    fatura.lembretes?.filter((l) => !l.concluido).length || 0;
+                  // Badges for COMPLETED custom reminders
+                  const completedReminders = (fatura.lembretes || []).filter((l: any) => l.concluido);
+                  
+                  // Closest PENDING reminder
+                  const nextReminder = (fatura.lembretes || [])
+                    .filter((l: any) => !l.concluido)
+                    .sort((a: any, b: any) => new Date(a.data).getTime() - new Date(b.data).getTime())[0];
+
+                  const isReminderLate = nextReminder && new Date(nextReminder.data).getTime() < new Date().setHours(0, 0, 0, 0);
 
                   return (
                     <tr
@@ -311,13 +317,49 @@ export default function FinanceiroPage() {
                         {formatCurrency(fatura.valor)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                        {activeReminders > 0 ? (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-indigo-100 text-indigo-800 dark:bg-indigo-900/50 dark:text-indigo-300">
-                            {activeReminders} pendentes
-                          </span>
-                        ) : (
-                          "-"
-                        )}
+                        <div className="flex flex-col gap-1 max-w-[150px]">
+                          {/* Next pending reminder - Primary focus */}
+                          {nextReminder ? (
+                            <>
+                              <span
+                                title={`Próximo: ${nextReminder.titulo}`}
+                                className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300 border border-yellow-200 dark:border-yellow-800 truncate"
+                              >
+                                ⏳ {nextReminder.titulo}
+                              </span>
+                              <span
+                                className={`text-[10px] mt-0.5 flex items-center ${
+                                  isReminderLate
+                                    ? "text-red-600 dark:text-red-400 font-bold"
+                                    : "text-gray-500"
+                                }`}
+                              >
+                                {isReminderLate && (
+                                  <svg
+                                    className="w-3 h-3 mr-1"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                  >
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth={2}
+                                      d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                                    />
+                                  </svg>
+                                )}
+                                {format(new Date(nextReminder.data), "dd/MM/yyyy")}
+                              </span>
+                            </>
+                          ) : fatura.status === "pago" ? (
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300 border border-green-200 dark:border-green-800">
+                              ✅ Tudo pronto
+                            </span>
+                          ) : (
+                            <span className="text-gray-400 text-[10px]">-</span>
+                          )}
+                        </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <div className="flex justify-end space-x-2">
@@ -336,26 +378,9 @@ export default function FinanceiroPage() {
                             </button>
                           )}
 
-                          {/* Fluxo: 1. Emitir NF */}
+                          {/* SEMPRE mostra Registrar Pagamento se não estiver pago ou cancelado */}
                           {fatura.status !== "pago" &&
-                            fatura.status !== "cancelado" &&
-                            !fatura.notaFiscalEmitida && (
-                              <button
-                                onClick={() =>
-                                  updateFatura(fatura.id, {
-                                    notaFiscalEmitida: true,
-                                  })
-                                }
-                                className="text-blue-600 hover:text-blue-900 dark:text-blue-400"
-                              >
-                                Emitir NF
-                              </button>
-                            )}
-
-                          {/* Fluxo: 2. Registrar Pagamento (somente após NF emitida) */}
-                          {fatura.status !== "pago" &&
-                            fatura.status !== "cancelado" &&
-                            canPay && (
+                            fatura.status !== "cancelado" && (
                               <button
                                 onClick={() =>
                                   updateFatura(fatura.id, {
@@ -363,7 +388,7 @@ export default function FinanceiroPage() {
                                     status: "pago",
                                   })
                                 }
-                                className="text-green-600 hover:text-green-900 dark:text-green-400"
+                                className="text-green-600 hover:text-green-900 dark:text-green-400 font-bold"
                               >
                                 Registrar Pagamento
                               </button>

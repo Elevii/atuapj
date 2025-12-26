@@ -7,6 +7,8 @@ import { useProjetos } from "@/contexts/ProjetoContext";
 import { useFaturamento } from "@/contexts/FaturamentoContext";
 import { formatTodayISODateLocal } from "@/utils/estimativas";
 import { CreateLembreteDTO, FrequenciaRecorrencia } from "@/types";
+import { addDays, addMonths, addWeeks, addYears, format, parseISO } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
 export default function NovaFaturaPage() {
   const router = useRouter();
@@ -35,7 +37,6 @@ export default function NovaFaturaPage() {
   });
 
   // Lembretes
-  const [usarLembretes, setUsarLembretes] = useState(false);
   const [lembretes, setLembretes] = useState<CreateLembreteDTO[]>([]);
   const [novoLembrete, setNovoLembrete] = useState<{
     titulo: string;
@@ -156,7 +157,7 @@ export default function NovaFaturaPage() {
         dataVencimento: formData.dataVencimento,
         observacoes: formData.observacoes.trim() || undefined,
         recorrencia: usarRecorrencia ? recorrencia : undefined,
-        lembretesIniciais: usarLembretes ? lembretes : undefined,
+        lembretesIniciais: lembretes, // Sempre envia lembretes se houver
       });
 
       router.push("/dashboard/financeiro");
@@ -174,6 +175,30 @@ export default function NovaFaturaPage() {
       currency: "BRL",
     }).format(value);
   };
+
+  // Preview das Datas
+  const getPreviewDates = () => {
+    if (!formData.dataVencimento) return [];
+    const dates: Date[] = [];
+    const baseDate = parseISO(formData.dataVencimento);
+    const count = usarRecorrencia ? recorrencia.repeticoes : 1;
+
+    for (let i = 0; i < count; i++) {
+        let nextDate = baseDate;
+        if (usarRecorrencia && i > 0) {
+            switch (recorrencia.frequencia) {
+                case "semanal": nextDate = addWeeks(baseDate, i); break;
+                case "quinzenal": nextDate = addWeeks(baseDate, i * 2); break;
+                case "mensal": nextDate = addMonths(baseDate, i); break;
+                case "anual": nextDate = addYears(baseDate, i); break;
+            }
+        }
+        dates.push(nextDate);
+    }
+    return dates;
+  };
+
+  const previewDates = getPreviewDates();
 
   return (
     <div className="space-y-6">
@@ -313,7 +338,7 @@ export default function NovaFaturaPage() {
                 htmlFor="dataVencimento"
                 className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
               >
-                Data de Vencimento (ou Início) <span className="text-red-500">*</span>
+                {usarRecorrencia ? "Data do Primeiro Vencimento" : "Data de Vencimento"} <span className="text-red-500">*</span>
               </label>
               <input
                 id="dataVencimento"
@@ -330,99 +355,114 @@ export default function NovaFaturaPage() {
                   {errors.dataVencimento}
                 </p>
               )}
+              {usarRecorrencia && formData.dataVencimento && (
+                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                      As próximas datas serão calculadas a partir desta.
+                  </p>
+              )}
             </div>
           </div>
 
           {/* Recorrência */}
-          <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
+          <div className="bg-gray-50 dark:bg-gray-700/30 p-4 rounded-xl border border-gray-200 dark:border-gray-700">
             <div className="flex items-center mb-4">
               <input
                 type="checkbox"
                 id="usarRecorrencia"
                 checked={usarRecorrencia}
                 onChange={(e) => setUsarRecorrencia(e.target.checked)}
-                className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded cursor-pointer"
               />
               <label
                 htmlFor="usarRecorrencia"
-                className="ml-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+                className="ml-2 block text-sm font-semibold text-gray-900 dark:text-white cursor-pointer"
               >
                 Fatura Recorrente?
               </label>
             </div>
 
             {usarRecorrencia && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-gray-50 dark:bg-gray-700/50 p-4 rounded-lg">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Frequência
-                  </label>
-                  <select
-                    value={recorrencia.frequencia}
-                    onChange={(e) =>
-                      setRecorrencia({
-                        ...recorrencia,
-                        frequencia: e.target.value as FrequenciaRecorrencia,
-                      })
-                    }
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                  >
-                    <option value="semanal">Semanal</option>
-                    <option value="quinzenal">Quinzenal</option>
-                    <option value="mensal">Mensal</option>
-                    <option value="anual">Anual</option>
-                  </select>
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Frequência
+                    </label>
+                    <select
+                        value={recorrencia.frequencia}
+                        onChange={(e) =>
+                        setRecorrencia({
+                            ...recorrencia,
+                            frequencia: e.target.value as FrequenciaRecorrencia,
+                        })
+                        }
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                    >
+                        <option value="semanal">Semanal (Toda semana)</option>
+                        <option value="quinzenal">Quinzenal (A cada 15 dias)</option>
+                        <option value="mensal">Mensal (Todo mês)</option>
+                        <option value="anual">Anual (Todo ano)</option>
+                    </select>
+                    </div>
+                    <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Repetições (Quantidade)
+                    </label>
+                    <input
+                        type="number"
+                        min="2"
+                        max="12"
+                        value={recorrencia.repeticoes}
+                        onChange={(e) =>
+                        setRecorrencia({
+                            ...recorrencia,
+                            repeticoes: parseInt(e.target.value),
+                        })
+                        }
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                    />
+                    </div>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Repetições (total de faturas)
-                  </label>
-                  <input
-                    type="number"
-                    min="2"
-                    max="12"
-                    value={recorrencia.repeticoes}
-                    onChange={(e) =>
-                      setRecorrencia({
-                        ...recorrencia,
-                        repeticoes: parseInt(e.target.value),
-                      })
-                    }
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                  />
-                </div>
+                
+                {previewDates.length > 0 && (
+                    <div className="mt-4 p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+                        <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-2 uppercase tracking-wide">
+                            Datas que serão geradas:
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                            {previewDates.map((date, idx) => (
+                                <span key={idx} className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800 dark:bg-indigo-900/50 dark:text-indigo-300">
+                                    {format(date, "dd/MM/yyyy")}
+                                </span>
+                            ))}
+                        </div>
+                    </div>
+                )}
               </div>
             )}
           </div>
 
           {/* Lembretes */}
-          <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
-            <div className="flex items-center mb-4">
-              <input
-                type="checkbox"
-                id="usarLembretes"
-                checked={usarLembretes}
-                onChange={(e) => setUsarLembretes(e.target.checked)}
-                className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-              />
-              <label
-                htmlFor="usarLembretes"
-                className="ml-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
-              >
-                Adicionar Lembretes?
-              </label>
-            </div>
+          <div className="space-y-4">
+            <h3 className="text-lg font-medium text-gray-900 dark:text-white flex items-center gap-2">
+                <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                </svg>
+                Lembretes & Checklist
+            </h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+                Defina tarefas ou lembretes. Ex: Enviar Relatório, Cobrar Cliente.
+            </p>
 
-            {usarLembretes && (
-              <div className="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-lg space-y-4">
-                <div className="flex flex-col md:flex-row gap-4 items-end">
-                  <div className="flex-1">
+            <div className="bg-gray-50 dark:bg-gray-700/30 p-4 rounded-xl border border-gray-200 dark:border-gray-700 space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
+                  <div className="md:col-span-5">
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      Lembrete
+                      Título do Lembrete
                     </label>
                     <input
                       type="text"
-                      placeholder="Ex: Enviar Relatório, Cobrar Cliente"
+                      placeholder="Ex: Enviar NF"
                       value={novoLembrete.titulo}
                       onChange={(e) =>
                         setNovoLembrete({
@@ -433,9 +473,9 @@ export default function NovaFaturaPage() {
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                     />
                   </div>
-                  <div className="w-full md:w-32">
+                  <div className="md:col-span-3">
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      Tipo
+                      Quando?
                     </label>
                     <select
                       value={novoLembrete.tipo}
@@ -447,15 +487,15 @@ export default function NovaFaturaPage() {
                       }
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                     >
-                      <option value="relativo">Relativo</option>
-                      <option value="fixo">Data Fixa</option>
+                      <option value="relativo">Dias antes do Venc.</option>
+                      <option value="fixo">Em uma data específica</option>
                     </select>
                   </div>
 
                   {novoLembrete.tipo === "relativo" ? (
-                    <div className="w-full md:w-40">
+                    <div className="md:col-span-3">
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        Dias antes do Venc.
+                        Dias antes
                       </label>
                       <input
                         type="number"
@@ -471,9 +511,9 @@ export default function NovaFaturaPage() {
                       />
                     </div>
                   ) : (
-                    <div className="w-full md:w-40">
+                    <div className="md:col-span-3">
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        Data
+                        {usarRecorrencia ? "Data (1ª ocorrência)" : "Data"}
                       </label>
                       <input
                         type="date"
@@ -489,45 +529,58 @@ export default function NovaFaturaPage() {
                     </div>
                   )}
 
-                  <button
-                    type="button"
-                    onClick={addLembrete}
-                    className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
-                  >
-                    Adicionar
-                  </button>
+                  <div className="md:col-span-1">
+                    <button
+                        type="button"
+                        onClick={addLembrete}
+                        className="w-full px-3 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 flex justify-center items-center h-[42px]"
+                        title="Adicionar"
+                    >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                        </svg>
+                    </button>
+                  </div>
                 </div>
+                
+                {usarRecorrencia && novoLembrete.tipo === "fixo" && (
+                    <p className="text-xs text-gray-500 dark:text-gray-400 italic">
+                        * O lembrete de data fixa também será repetido seguindo a frequência da fatura.
+                    </p>
+                )}
 
                 {lembretes.length > 0 && (
-                  <ul className="space-y-2">
+                  <div className="space-y-2 mt-4 pt-4 border-t border-gray-200 dark:border-gray-600">
                     {lembretes.map((l, index) => (
-                      <li
+                      <div
                         key={index}
-                        className="flex justify-between items-center bg-white dark:bg-gray-800 p-2 rounded border border-gray-200 dark:border-gray-700"
+                        className="flex justify-between items-center bg-white dark:bg-gray-800 p-3 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm"
                       >
-                        <span className="text-sm text-gray-700 dark:text-gray-300">
-                          {l.titulo}
-                          <span className="text-gray-500 ml-2 text-xs">
-                            {l.dataFixa
-                              ? `(Em ${new Date(
-                                  l.dataFixa
-                                ).toLocaleDateString()})`
-                              : `(${l.diasAntesVencimento} dias antes)`}
-                          </span>
-                        </span>
+                        <div className="flex items-center gap-2">
+                            <span className="w-2 h-2 rounded-full bg-indigo-500"></span>
+                            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                            {l.titulo}
+                            </span>
+                            <span className="text-xs text-gray-500 bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded ml-2">
+                                {l.dataFixa
+                                ? `${new Date(l.dataFixa).toLocaleDateString()}`
+                                : `${l.diasAntesVencimento} dias antes`}
+                            </span>
+                        </div>
                         <button
                           type="button"
                           onClick={() => removeLembrete(index)}
-                          className="text-red-500 hover:text-red-700"
+                          className="text-gray-400 hover:text-red-500 transition-colors"
                         >
-                          Remover
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
                         </button>
-                      </li>
+                      </div>
                     ))}
-                  </ul>
+                  </div>
                 )}
               </div>
-            )}
           </div>
 
           <div>
