@@ -66,15 +66,18 @@ export function AtuacaoProvider({ children }: { children: ReactNode }) {
   }, [atuacoes]);
 
   const syncAtividadeHorasEStatus = useCallback(
-    async (atividadeId: string) => {
-      const atividade = atividades.find((a) => a.id === atividadeId);
+    async (params: { atividadeId: string; atuacoesSnapshot: Atuacao[] }) => {
+      const atividade = atividades.find((a) => a.id === params.atividadeId);
       if (!atividade) return;
 
-      const totalHoras = totalHorasPorAtividade.get(atividadeId) ?? 0;
+      // Total de horas acumuladas com base no snapshot (evita estado stale do React)
+      const totalHoras = params.atuacoesSnapshot
+        .filter((a) => a.atividadeId === params.atividadeId)
+        .reduce((sum, a) => sum + (a.horasUtilizadas ?? 0), 0);
 
       // Status atual da atividade passa a ser o status do último registro de atuação (se existir).
-      const lastAtuacao = [...atuacoes]
-        .filter((a) => a.atividadeId === atividadeId)
+      const lastAtuacao = [...params.atuacoesSnapshot]
+        .filter((a) => a.atividadeId === params.atividadeId)
         .sort((a, b) => (a.createdAt < b.createdAt ? 1 : a.createdAt > b.createdAt ? -1 : 0))[0];
 
       const status =
@@ -84,9 +87,9 @@ export function AtuacaoProvider({ children }: { children: ReactNode }) {
           horasEstimadas: atividade.horasAtuacao,
         });
 
-      await updateAtividade(atividadeId, { horasUtilizadas: totalHoras, status });
+      await updateAtividade(params.atividadeId, { horasUtilizadas: totalHoras, status });
     },
-    [atividades, atuacoes, totalHorasPorAtividade, updateAtividade]
+    [atividades, updateAtividade]
   );
 
   const createAtuacao = useCallback(
@@ -96,7 +99,10 @@ export function AtuacaoProvider({ children }: { children: ReactNode }) {
       setAtuacoes(all);
 
       // Após inserir, sincroniza horas/status da atividade
-      await syncAtividadeHorasEStatus(data.atividadeId);
+      await syncAtividadeHorasEStatus({
+        atividadeId: data.atividadeId,
+        atuacoesSnapshot: all,
+      });
       return nova;
     },
     [syncAtividadeHorasEStatus]
@@ -110,7 +116,10 @@ export function AtuacaoProvider({ children }: { children: ReactNode }) {
       setAtuacoes(all);
 
       if (atuacao) {
-        await syncAtividadeHorasEStatus(atuacao.atividadeId);
+        await syncAtividadeHorasEStatus({
+          atividadeId: atuacao.atividadeId,
+          atuacoesSnapshot: all,
+        });
       }
     },
     [atuacoes, syncAtividadeHorasEStatus]

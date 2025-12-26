@@ -7,6 +7,7 @@ import { useProjetos } from "@/contexts/ProjetoContext";
 import { useAtividades } from "@/contexts/AtividadeContext";
 import { useAtuacoes } from "@/contexts/AtuacaoContext";
 import { StatusAtividade, TipoAtuacao } from "@/types";
+import { formatTodayISODateLocal } from "@/utils/estimativas";
 
 type Errors = Partial<Record<string, string>>;
 
@@ -22,6 +23,12 @@ const statusOptions: { value: StatusAtividade; label: string }[] = [
   { value: "concluida", label: "Concluída" },
 ];
 
+const statusLabel: Record<StatusAtividade, string> = {
+  pendente: "Pendente",
+  em_execucao: "Em execução",
+  concluida: "Concluída",
+};
+
 export default function NovaAtuacaoPage() {
   const router = useRouter();
   const { projetos } = useProjetos();
@@ -34,7 +41,7 @@ export default function NovaAtuacaoPage() {
   const [formData, setFormData] = useState({
     projetoId: "",
     atividadeId: "",
-    data: new Date().toISOString().split("T")[0],
+    data: formatTodayISODateLocal(),
     horarioInicio: "",
     horasUtilizadas: "",
     tipo: "execucao" as TipoAtuacao,
@@ -52,8 +59,27 @@ export default function NovaAtuacaoPage() {
   }, [formData.projetoId, projetos]);
 
   const atividadesDoProjeto = useMemo(() => {
-    return formData.projetoId ? getAtividadesByProjeto(formData.projetoId) : [];
+    return formData.projetoId
+      ? getAtividadesByProjeto(formData.projetoId).filter(
+          (a) => a.status !== "concluida"
+        )
+      : [];
   }, [formData.projetoId, getAtividadesByProjeto]);
+
+  const atividadesOrdenadas = useMemo(() => {
+    const prioridade: Record<StatusAtividade, number> = {
+      em_execucao: 0,
+      pendente: 1,
+      concluida: 2,
+    };
+
+    return [...atividadesDoProjeto].sort((a, b) => {
+      const pa = prioridade[a.status] ?? 99;
+      const pb = prioridade[b.status] ?? 99;
+      if (pa !== pb) return pa - pb;
+      return a.titulo.localeCompare(b.titulo, "pt-BR");
+    });
+  }, [atividadesDoProjeto]);
 
   const atividadeSelecionada = useMemo(() => {
     return atividadesDoProjeto.find((a) => a.id === formData.atividadeId);
@@ -225,9 +251,9 @@ export default function NovaAtuacaoPage() {
                 } ${!formData.projetoId ? "opacity-60 cursor-not-allowed" : ""}`}
               >
                 <option value="">Selecione uma atividade</option>
-                {atividadesDoProjeto.map((a) => (
+                {atividadesOrdenadas.map((a) => (
                   <option key={a.id} value={a.id}>
-                    {a.titulo}
+                    ({statusLabel[a.status]}) - {a.titulo}
                   </option>
                 ))}
               </select>

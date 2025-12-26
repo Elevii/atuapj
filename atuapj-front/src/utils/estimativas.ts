@@ -5,6 +5,27 @@
  */
 export const DEFAULT_HORAS_UTEIS_POR_DIA = 8;
 
+export function parseISODateToLocal(dateISO: string): Date | null {
+  // Espera YYYY-MM-DD
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateISO);
+  if (!match) return null;
+  const year = Number(match[1]);
+  const monthIndex = Number(match[2]) - 1;
+  const day = Number(match[3]);
+  const d = new Date(year, monthIndex, day);
+  if (Number.isNaN(d.getTime())) return null;
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+export function formatTodayISODateLocal(): string {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, "0");
+  const d = String(now.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
 export function calcularDataFimEstimada(
   dataInicioISO: string,
   horasTotais: number,
@@ -12,8 +33,8 @@ export function calcularDataFimEstimada(
 ): string {
   if (!dataInicioISO) return "";
 
-  const dataInicioObj = new Date(dataInicioISO);
-  if (Number.isNaN(dataInicioObj.getTime())) return "";
+  const dataInicioObj = parseISODateToLocal(dataInicioISO);
+  if (!dataInicioObj) return "";
 
   const horas = Number(horasTotais);
   if (!Number.isFinite(horas) || horas <= 0) return "";
@@ -26,7 +47,6 @@ export function calcularDataFimEstimada(
 
   const diasNecessarios = Math.ceil(horas / horasPorDia);
 
-  dataInicioObj.setHours(0, 0, 0, 0);
   const dataFim = new Date(dataInicioObj);
 
   // Regra: considera o "início" como a data de partida e soma dias úteis a partir do dia seguinte.
@@ -40,7 +60,14 @@ export function calcularDataFimEstimada(
     }
   }
 
-  return dataFim.toISOString().split("T")[0];
+  return formatDateToISODateLocal(dataFim);
+}
+
+function formatDateToISODateLocal(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
 }
 
 

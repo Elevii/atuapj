@@ -5,7 +5,11 @@ import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import { useProjetos } from "@/contexts/ProjetoContext";
 import { useAtividades } from "@/contexts/AtividadeContext";
-import { calcularDataFimEstimada } from "@/utils/estimativas";
+import {
+  calcularDataFimEstimada,
+  formatTodayISODateLocal,
+  parseISODateToLocal,
+} from "@/utils/estimativas";
 
 export default function NovaAtividadePage() {
   const router = useRouter();
@@ -43,7 +47,7 @@ export default function NovaAtividadePage() {
 
   const [formData, setFormData] = useState({
     titulo: "",
-    dataInicio: new Date().toISOString().split("T")[0], // Data atual como padrão
+    dataInicio: formatTodayISODateLocal(), // Data atual (local) como padrão
     horasAtuacao: "",
     custoTarefa: "",
   });
@@ -135,10 +139,11 @@ export default function NovaAtividadePage() {
     if (!formData.dataInicio) {
       newErrors.dataInicio = "Data de início é obrigatória";
     } else {
-      const dataInicio = new Date(formData.dataInicio);
-      const hoje = new Date();
-      hoje.setHours(0, 0, 0, 0);
-      if (dataInicio < hoje) {
+      const dataInicio = parseISODateToLocal(formData.dataInicio);
+      const hoje = parseISODateToLocal(formatTodayISODateLocal());
+      if (!dataInicio || !hoje) {
+        newErrors.dataInicio = "Data de início inválida";
+      } else if (dataInicio < hoje) {
         newErrors.dataInicio = "Data de início não pode ser no passado";
       }
     }
@@ -280,7 +285,7 @@ export default function NovaAtividadePage() {
                   required
                   value={formData.dataInicio}
                   onChange={handleChange}
-                  min={new Date().toISOString().split("T")[0]}
+                  min={formatTodayISODateLocal()}
                   className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors dark:bg-gray-700 dark:border-gray-600 dark:text-white ${
                     errors.dataInicio
                       ? "border-red-500 focus:ring-red-500 focus:border-red-500"
