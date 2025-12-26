@@ -1,4 +1,4 @@
-import { Atividade, CreateAtividadeDTO } from "@/types";
+import { Atividade, CreateAtividadeDTO, StatusAtividade } from "@/types";
 
 // Simulação de API - em produção será substituído por chamadas HTTP reais
 class AtividadeService {
@@ -78,6 +78,8 @@ class AtividadeService {
     const novaAtividade: Atividade = {
       id: `ativ_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       ...data,
+      horasUtilizadas: data.horasUtilizadas || 0,
+      status: data.status || "pendente",
       dataFimEstimada,
       lucroEstimado,
       createdAt: new Date().toISOString(),
@@ -92,7 +94,7 @@ class AtividadeService {
 
   async update(
     id: string,
-    data: Partial<CreateAtividadeDTO>,
+    data: Partial<CreateAtividadeDTO> & { status?: StatusAtividade; horasUtilizadas?: number },
     valorHora?: number
   ): Promise<Atividade> {
     await new Promise((resolve) => setTimeout(resolve, 400));
@@ -119,6 +121,16 @@ class AtividadeService {
     } else if (data.horasAtuacao) {
       dataAtualizada.lucroEstimado =
         data.horasAtuacao * (atividadeAtual.lucroEstimado / atividadeAtual.horasAtuacao);
+    }
+    
+    // Recalcular lucro baseado em horas utilizadas se fornecido (prioridade para horas utilizadas)
+    if (data.horasUtilizadas !== undefined && valorHora !== undefined) {
+      dataAtualizada.lucroEstimado = data.horasUtilizadas * valorHora;
+    } else if (data.horasUtilizadas !== undefined && atividadeAtual) {
+      // Se não tem valorHora, recalcula proporcionalmente
+      const valorHoraAtual =
+        atividadeAtual.lucroEstimado / atividadeAtual.horasAtuacao;
+      dataAtualizada.lucroEstimado = data.horasUtilizadas * valorHoraAtual;
     }
     
     atividades[index] = {

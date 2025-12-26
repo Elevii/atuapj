@@ -61,6 +61,7 @@ export function ProjetoProvider({ children }: { children: ReactNode }) {
 
   const deleteProjeto = async (id: string): Promise<void> => {
     await projetoService.delete(id);
+    // TODO: Excluir atividades relacionadas quando houver integração com backend
     setProjetos((prev) => prev.filter((p) => p.id !== id));
   };
 

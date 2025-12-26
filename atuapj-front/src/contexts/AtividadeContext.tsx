@@ -8,7 +8,7 @@ import {
   useEffect,
   ReactNode,
 } from "react";
-import { Atividade, CreateAtividadeDTO } from "@/types";
+import { Atividade, CreateAtividadeDTO, StatusAtividade } from "@/types";
 import { atividadeService } from "@/services/atividadeService";
 import { useProjetos } from "./ProjetoContext";
 
@@ -76,7 +76,10 @@ export function AtividadeProvider({ children }: { children: ReactNode }) {
 
   const updateAtividade = async (
     id: string,
-    data: Partial<CreateAtividadeDTO>
+    data: Partial<CreateAtividadeDTO> & {
+      status?: StatusAtividade;
+      horasUtilizadas?: number;
+    }
   ): Promise<Atividade> => {
     const atividadeAtual = atividades.find((a) => a.id === id);
     if (!atividadeAtual) {
