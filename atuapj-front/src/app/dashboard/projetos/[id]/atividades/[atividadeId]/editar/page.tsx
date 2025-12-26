@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useProjetos } from "@/contexts/ProjetoContext";
 import { useAtividades } from "@/contexts/AtividadeContext";
 import { StatusAtividade } from "@/types";
+import { calcularDataFimEstimada } from "@/utils/estimativas";
 
 export default function EditarAtividadePage() {
   const router = useRouter();
@@ -177,7 +178,15 @@ export default function EditarAtividadePage() {
     }).format(value);
   };
 
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString("pt-BR");
+  };
+
   const custoCalculado = parseFloat(formData.custoTarefa || "0");
+  const terminoEstimadoISO = calcularDataFimEstimada(
+    formData.dataInicio,
+    parseFloat(formData.horasAtuacao || "0")
+  );
 
   return (
     <div className="space-y-6">
@@ -467,6 +476,17 @@ export default function EditarAtividadePage() {
                 </p>
                 <p className="text-base font-semibold text-gray-900 dark:text-white">
                   {formData.horasUtilizadas || "0"}h
+                </p>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">
+                  Término Estimado
+                </p>
+                <p className="text-base font-semibold text-gray-900 dark:text-white">
+                  {formatDate(terminoEstimadoISO)}
+                </p>
+                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                  Baseado em {formData.horasAtuacao || "0"}h estimadas
                 </p>
               </div>
               <div className="pt-4 border-t border-gray-200 dark:border-gray-700">

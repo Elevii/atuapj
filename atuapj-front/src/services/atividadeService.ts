@@ -1,4 +1,5 @@
 import { Atividade, CreateAtividadeDTO, StatusAtividade } from "@/types";
+import { calcularDataFimEstimada } from "@/utils/estimativas";
 
 // Simulação de API - em produção será substituído por chamadas HTTP reais
 class AtividadeService {
@@ -52,29 +53,7 @@ class AtividadeService {
   }
 
   private calcularDataFim(dataInicio: string, horas: number): string {
-    const horasPorDia = 8;
-    const diasNecessarios = Math.ceil(horas / horasPorDia);
-    
-    const dataInicioObj = new Date(dataInicio);
-    dataInicioObj.setHours(0, 0, 0, 0);
-    const dataFim = new Date(dataInicioObj);
-    
-    // Se o dia inicial for útil, já conta como um dia
-    let diasAdicionados = 0;
-    if (dataFim.getDay() !== 0 && dataFim.getDay() !== 6) {
-      diasAdicionados = 1;
-    }
-    
-    // Adiciona dias até completar a quantidade necessária
-    while (diasAdicionados < diasNecessarios) {
-      dataFim.setDate(dataFim.getDate() + 1);
-      const diaDaSemana = dataFim.getDay();
-      if (diaDaSemana !== 0 && diaDaSemana !== 6) {
-        diasAdicionados++;
-      }
-    }
-    
-    return dataFim.toISOString().split("T")[0];
+    return calcularDataFimEstimada(dataInicio, horas);
   }
 
   async findAll(): Promise<Atividade[]> {

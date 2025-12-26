@@ -5,6 +5,7 @@ import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import { useProjetos } from "@/contexts/ProjetoContext";
 import { useAtividades } from "@/contexts/AtividadeContext";
+import { calcularDataFimEstimada } from "@/utils/estimativas";
 
 export default function NovaAtividadePage() {
   const router = useRouter();
@@ -72,36 +73,11 @@ export default function NovaAtividadePage() {
     if (isNaN(horas) || horas <= 0) {
       return { dataFim: null, custo: null };
     }
-
-    // Assumindo 8 horas por dia útil
-    const horasPorDia = 8;
-    const diasNecessarios = Math.ceil(horas / horasPorDia);
-    
-    const dataInicio = new Date(formData.dataInicio);
-    dataInicio.setHours(0, 0, 0, 0);
-    const dataFim = new Date(dataInicio);
-    
-    // Adicionar dias úteis (pular finais de semana)
-    let diasAdicionados = 0;
-    // Se o dia inicial for útil, já conta como um dia
-    if (dataFim.getDay() !== 0 && dataFim.getDay() !== 6) {
-      diasAdicionados = 1;
-    }
-    
-    // Adiciona dias até completar a quantidade necessária
-    while (diasAdicionados < diasNecessarios) {
-      dataFim.setDate(dataFim.getDate() + 1);
-      const diaDaSemana = dataFim.getDay();
-      // Se for dia útil, incrementa contador
-      if (diaDaSemana !== 0 && diaDaSemana !== 6) {
-        diasAdicionados++;
-      }
-    }
-
+    const dataFimISO = calcularDataFimEstimada(formData.dataInicio, horas);
     const custo = horas * (projeto?.valorHora || 0);
 
     return {
-      dataFim: dataFim.toISOString().split("T")[0],
+      dataFim: dataFimISO,
       custo,
     };
   };
