@@ -69,8 +69,8 @@ const navigation: NavItem[] = [
     ),
   },
   {
-    name: "Relatórios",
-    href: "/dashboard/relatorios",
+    name: "Orçamentos",
+    href: "/dashboard/orcamentos",
     icon: (
       <svg
         className="w-6 h-6"

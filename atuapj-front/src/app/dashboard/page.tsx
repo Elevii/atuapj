@@ -231,7 +231,7 @@ export default function DashboardPage() {
           </Link>
 
           <Link
-            href="/dashboard/relatorios"
+            href="/dashboard/orcamentos"
             className="flex items-center space-x-3 p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
           >
             <div className="bg-blue-100 dark:bg-blue-900/50 rounded-lg p-3">
@@ -251,10 +251,10 @@ export default function DashboardPage() {
             </div>
             <div>
               <p className="font-medium text-gray-900 dark:text-white">
-                Relatórios
+                Orçamentos
               </p>
               <p className="text-sm text-gray-500 dark:text-gray-400">
-                Análises e métricas
+                Criar e exportar orçamentos
               </p>
             </div>
           </Link>

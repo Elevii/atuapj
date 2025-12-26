@@ -91,3 +91,67 @@ export interface CreateAtuacaoDTO {
   impactoGerado?: string;
 }
 
+export type OrcamentoCampoAtividade =
+  | "titulo"
+  | "status"
+  | "dataInicio"
+  | "dataFimEstimada"
+  | "horasAtuacao"
+  | "custoTarefa"
+  | "custoCalculado"
+  | "horasUtilizadas";
+
+export interface OrcamentoCheckpoint {
+  id: string;
+  titulo: string;
+  dataAlvo?: string; // ISO date
+  descricao?: string;
+  ordem: number;
+}
+
+export interface OrcamentoEntregavel {
+  id: string;
+  titulo: string;
+  descricao?: string;
+  ordem: number;
+  checkpoints: OrcamentoCheckpoint[];
+}
+
+export interface OrcamentoItem {
+  atividadeId: string;
+  ordem?: number;
+  entregavelId?: string;
+  inicioOverride?: string; // ISO date
+  fimOverride?: string; // ISO date
+}
+
+export interface Orcamento {
+  id: string;
+  projetoId: string;
+  titulo: string;
+  /**
+   * Data de início do cronograma do orçamento (ISO date).
+   */
+  dataInicioProjeto: string;
+  camposSelecionados: OrcamentoCampoAtividade[];
+  itens: OrcamentoItem[];
+  observacoes?: string;
+  usarEntregaveis: boolean;
+  mostrarSubtotaisPorEntregavel: boolean;
+  entregaveis?: OrcamentoEntregavel[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateOrcamentoDTO {
+  projetoId: string;
+  titulo: string;
+  dataInicioProjeto: string;
+  camposSelecionados: OrcamentoCampoAtividade[];
+  itens: OrcamentoItem[];
+  observacoes?: string;
+  usarEntregaveis: boolean;
+  mostrarSubtotaisPorEntregavel: boolean;
+  entregaveis?: OrcamentoEntregavel[];
+}
+

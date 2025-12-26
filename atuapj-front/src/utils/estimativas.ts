@@ -63,11 +63,56 @@ export function calcularDataFimEstimada(
   return formatDateToISODateLocal(dataFim);
 }
 
+export type CronogramaItem = {
+  atividadeId: string;
+  horasEstimadas: number;
+  inicio: string; // ISO date
+  fim: string; // ISO date
+};
+
+export function gerarCronogramaSequencial(params: {
+  dataInicioProjetoISO: string;
+  itens: Array<{
+    atividadeId: string;
+    horasEstimadas: number;
+    inicioOverride?: string;
+    fimOverride?: string;
+  }>;
+  horasUteisPorDia: number;
+}): CronogramaItem[] {
+  let cursorISO = params.dataInicioProjetoISO;
+
+  return params.itens.map((item) => {
+    const inicio = item.inicioOverride ?? cursorISO;
+    const fim =
+      item.fimOverride ?? calcularDataFimEstimada(inicio, item.horasEstimadas, params.horasUteisPorDia);
+
+    // Próximo item começa no dia seguinte ao fim calculado (sequencial)
+    const fimDate = parseISODateToLocal(fim);
+    const nextStart =
+      fimDate ? formatDateToISODateLocal(addDays(fimDate, 1)) : fim;
+    cursorISO = nextStart;
+
+    return {
+      atividadeId: item.atividadeId,
+      horasEstimadas: item.horasEstimadas,
+      inicio,
+      fim,
+    };
+  });
+}
+
 function formatDateToISODateLocal(date: Date): string {
   const y = date.getFullYear();
   const m = String(date.getMonth() + 1).padStart(2, "0");
   const d = String(date.getDate()).padStart(2, "0");
   return `${y}-${m}-${d}`;
+}
+
+function addDays(date: Date, days: number): Date {
+  const d = new Date(date);
+  d.setDate(d.getDate() + days);
+  return d;
 }
 
 

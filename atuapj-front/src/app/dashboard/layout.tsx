@@ -6,6 +6,7 @@ import Header from "@/components/dashboard/Header";
 import { ProjetoProvider } from "@/contexts/ProjetoContext";
 import { AtividadeProvider } from "@/contexts/AtividadeContext";
 import { AtuacaoProvider } from "@/contexts/AtuacaoContext";
+import { OrcamentoProvider } from "@/contexts/OrcamentoContext";
 
 export default function DashboardLayout({
   children,
@@ -18,18 +19,20 @@ export default function DashboardLayout({
     <ProjetoProvider>
       <AtividadeProvider>
         <AtuacaoProvider>
-          <div className="flex h-screen bg-gray-50 dark:bg-gray-900">
-            <Sidebar
-              isOpen={sidebarOpen}
-              onToggle={() => setSidebarOpen(!sidebarOpen)}
-            />
+          <OrcamentoProvider>
+            <div className="flex h-screen bg-gray-50 dark:bg-gray-900">
+              <Sidebar
+                isOpen={sidebarOpen}
+                onToggle={() => setSidebarOpen(!sidebarOpen)}
+              />
 
-            <div className="flex-1 flex flex-col overflow-hidden lg:ml-0">
-              <Header onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
+              <div className="flex-1 flex flex-col overflow-hidden lg:ml-0">
+                <Header onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
 
-              <main className="flex-1 overflow-y-auto p-6">{children}</main>
+                <main className="flex-1 overflow-y-auto p-6">{children}</main>
+              </div>
             </div>
-          </div>
+          </OrcamentoProvider>
         </AtuacaoProvider>
       </AtividadeProvider>
     </ProjetoProvider>
