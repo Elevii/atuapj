@@ -86,7 +86,7 @@ export default function NovaAtividadePage() {
 
     return {
       dataFim: dataFimISO,
-      custo,
+      custo: projeto.tipoCobranca === "fixo" ? 0 : custo,
     };
   };
 
@@ -96,6 +96,11 @@ export default function NovaAtividadePage() {
   useEffect(() => {
     if (custoManual) return;
     if (!projeto) return;
+
+    if (projeto.tipoCobranca === "fixo") {
+      setFormData((prev) => ({ ...prev, custoTarefa: "0" }));
+      return;
+    }
 
     const horas = parseFloat(formData.horasAtuacao);
     if (isNaN(horas) || horas <= 0) {
@@ -364,8 +369,11 @@ export default function NovaAtividadePage() {
                   placeholder="Calculado automaticamente"
                 />
                 <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                  Padrão: {formData.horasAtuacao || "0"}h ×{" "}
-                  {projeto ? formatCurrency(projeto.valorHora) : "R$ 0,00"}/h. Você pode ajustar.
+                  {projeto?.tipoCobranca === "fixo"
+                    ? "Projeto de valor fixo (custo por hora não se aplica)"
+                    : `Padrão: ${formData.horasAtuacao || "0"}h × ${
+                        projeto ? formatCurrency(projeto.valorHora) : "R$ 0,00"
+                      }/h. Você pode ajustar.`}
                 </p>
               </div>
 
@@ -448,8 +456,11 @@ export default function NovaAtividadePage() {
                   {custoManual ? "Valor ajustado manualmente" : "Calculado automaticamente"}
                 </p>
                 <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                  {formData.horasAtuacao || "0"}h ×{" "}
-                  {projeto ? formatCurrency(projeto.valorHora) : "R$ 0,00"}/h
+                  {projeto?.tipoCobranca === "fixo"
+                    ? "Projeto de Valor Fixo"
+                    : `${formData.horasAtuacao || "0"}h × ${
+                        projeto ? formatCurrency(projeto.valorHora) : "R$ 0,00"
+                      }/h`}
                 </p>
               </div>
             </div>

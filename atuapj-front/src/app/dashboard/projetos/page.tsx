@@ -125,10 +125,14 @@ export default function ProjetosPage() {
             </div>
             <div className="flex items-center justify-between pt-4 border-t border-gray-200 dark:border-gray-700">
               <span className="text-sm text-gray-500 dark:text-gray-400">
-                Valor/hora
+                {projeto.tipoCobranca === "fixo" ? "Valor do Projeto" : "Valor/hora"}
               </span>
               <span className="text-sm font-semibold text-indigo-600 dark:text-indigo-400">
-                {formatCurrency(projeto.valorHora)}
+                {formatCurrency(
+                  projeto.tipoCobranca === "fixo"
+                    ? projeto.valorFixo ?? 0
+                    : projeto.valorHora
+                )}
               </span>
             </div>
           </Link>

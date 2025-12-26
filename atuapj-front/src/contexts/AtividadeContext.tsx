@@ -69,7 +69,7 @@ export function AtividadeProvider({ children }: { children: ReactNode }) {
 
     const novaAtividade = await atividadeService.create(
       data,
-      projeto.valorHora,
+      projeto.valorHora ?? 0,
       projeto.horasUteisPorDia
     );
     // Recarrega todas as atividades para garantir sincronização
@@ -94,7 +94,7 @@ export function AtividadeProvider({ children }: { children: ReactNode }) {
     const atividadeAtualizada = await atividadeService.update(
       id,
       data,
-      projeto?.valorHora,
+      projeto?.valorHora ?? 0,
       projeto?.horasUteisPorDia
     );
     // Recarrega todas as atividades para garantir sincronização

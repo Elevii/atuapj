@@ -4,6 +4,7 @@ import { useState, FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useProjetos } from "@/contexts/ProjetoContext";
+import { TipoCobranca } from "@/types";
 
 export default function NovoProjetoPage() {
   const router = useRouter();
@@ -13,6 +14,7 @@ export default function NovoProjetoPage() {
     empresa?: string;
     titulo?: string;
     valorHora?: string;
+    valorFixo?: string;
     horasUteisPorDia?: string;
   }>({});
 
@@ -20,10 +22,12 @@ export default function NovoProjetoPage() {
     empresa: "",
     titulo: "",
     valorHora: "",
+    valorFixo: "",
+    tipoCobranca: "horas" as TipoCobranca,
     horasUteisPorDia: "8",
   });
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
     // Limpar erro do campo quando o usuário começar a digitar
@@ -44,12 +48,15 @@ export default function NovoProjetoPage() {
     }).format(number);
   };
 
-  const handleValorHoraChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleValorChange = (
+    e: React.ChangeEvent<HTMLInputElement>,
+    field: "valorHora" | "valorFixo"
+  ) => {
     const value = e.target.value;
     const formatted = formatCurrency(value);
-    setFormData((prev) => ({ ...prev, valorHora: formatted }));
-    if (errors.valorHora) {
-      setErrors((prev) => ({ ...prev, valorHora: undefined }));
+    setFormData((prev) => ({ ...prev, [field]: formatted }));
+    if (errors[field]) {
+      setErrors((prev) => ({ ...prev, [field]: undefined }));
     }
   };
 
@@ -66,6 +73,7 @@ export default function NovoProjetoPage() {
       empresa?: string;
       titulo?: string;
       valorHora?: string;
+      valorFixo?: string;
       horasUteisPorDia?: string;
     } = {};
 
@@ -79,12 +87,23 @@ export default function NovoProjetoPage() {
       newErrors.titulo = "Título deve ter no mínimo 3 caracteres";
     }
 
-    if (!formData.valorHora) {
-      newErrors.valorHora = "Valor por hora é obrigatório";
+    if (formData.tipoCobranca === "horas") {
+      if (!formData.valorHora) {
+        newErrors.valorHora = "Valor por hora é obrigatório";
+      } else {
+        const valor = parseCurrency(formData.valorHora);
+        if (valor <= 0) {
+          newErrors.valorHora = "Valor deve ser maior que zero";
+        }
+      }
     } else {
-      const valor = parseCurrency(formData.valorHora);
-      if (valor <= 0) {
-        newErrors.valorHora = "Valor deve ser maior que zero";
+      if (!formData.valorFixo) {
+        newErrors.valorFixo = "Valor do projeto é obrigatório";
+      } else {
+        const valor = parseCurrency(formData.valorFixo);
+        if (valor <= 0) {
+          newErrors.valorFixo = "Valor deve ser maior que zero";
+        }
       }
     }
 
@@ -106,7 +125,9 @@ export default function NovoProjetoPage() {
       const novoProjeto = await createProjeto({
         empresa: formData.empresa.trim(),
         titulo: formData.titulo.trim(),
-        valorHora: parseCurrency(formData.valorHora),
+        tipoCobranca: formData.tipoCobranca,
+        valorHora: formData.tipoCobranca === "horas" ? parseCurrency(formData.valorHora) : undefined,
+        valorFixo: formData.tipoCobranca === "fixo" ? parseCurrency(formData.valorFixo) : undefined,
         horasUteisPorDia: parseInt(formData.horasUteisPorDia, 10),
       });
       
@@ -216,40 +237,87 @@ export default function NovoProjetoPage() {
             )}
           </div>
 
-          {/* Valor por Hora */}
+          {/* Tipo de Cobrança */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Tipo de Cobrança
+            </label>
+            <div className="flex items-center gap-4">
+              <label className="inline-flex items-center">
+                <input
+                  type="radio"
+                  name="tipoCobranca"
+                  value="horas"
+                  checked={formData.tipoCobranca === "horas"}
+                  onChange={handleChange}
+                  className="form-radio h-4 w-4 text-indigo-600 transition duration-150 ease-in-out"
+                />
+                <span className="ml-2 text-gray-700 dark:text-gray-300">
+                  Por Hora
+                </span>
+              </label>
+              <label className="inline-flex items-center">
+                <input
+                  type="radio"
+                  name="tipoCobranca"
+                  value="fixo"
+                  checked={formData.tipoCobranca === "fixo"}
+                  onChange={handleChange}
+                  className="form-radio h-4 w-4 text-indigo-600 transition duration-150 ease-in-out"
+                />
+                <span className="ml-2 text-gray-700 dark:text-gray-300">
+                  Valor Fixo
+                </span>
+              </label>
+            </div>
+          </div>
+
+          {/* Valor Financeiro */}
           <div>
             <label
-              htmlFor="valorHora"
+              htmlFor={formData.tipoCobranca === "horas" ? "valorHora" : "valorFixo"}
               className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
             >
-              Valor por Hora <span className="text-red-500">*</span>
+              {formData.tipoCobranca === "horas" ? "Valor por Hora" : "Valor do Projeto"}{" "}
+              <span className="text-red-500">*</span>
             </label>
             <div className="relative">
               <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400">
                 R$
               </span>
               <input
-                id="valorHora"
-                name="valorHora"
+                id={formData.tipoCobranca === "horas" ? "valorHora" : "valorFixo"}
+                name={formData.tipoCobranca === "horas" ? "valorHora" : "valorFixo"}
                 type="text"
                 required
-                value={formData.valorHora}
-                onChange={handleValorHoraChange}
+                value={
+                  formData.tipoCobranca === "horas"
+                    ? formData.valorHora
+                    : formData.valorFixo
+                }
+                onChange={(e) =>
+                  handleValorChange(
+                    e,
+                    formData.tipoCobranca === "horas" ? "valorHora" : "valorFixo"
+                  )
+                }
                 className={`w-full pl-12 pr-4 py-3 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:placeholder-gray-400 ${
-                  errors.valorHora
+                  errors[formData.tipoCobranca === "horas" ? "valorHora" : "valorFixo"]
                     ? "border-red-500 focus:ring-red-500 focus:border-red-500"
                     : "border-gray-300"
                 }`}
                 placeholder="0,00"
               />
             </div>
-            {errors.valorHora && (
+            {errors[formData.tipoCobranca === "horas" ? "valorHora" : "valorFixo"] && (
               <p className="mt-1 text-sm text-red-600 dark:text-red-400">
-                {errors.valorHora}
+                {errors[formData.tipoCobranca === "horas" ? "valorHora" : "valorFixo"]}
               </p>
             )}
             <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-              Este valor será usado para calcular a receita das atividades
+              {formData.tipoCobranca === "horas"
+                ? "Este valor será usado para calcular a receita das atividades"
+                : "Valor total fechado para o projeto"}
             </p>
           </div>
 

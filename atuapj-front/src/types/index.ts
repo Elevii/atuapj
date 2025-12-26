@@ -2,7 +2,9 @@ export interface Projeto {
   id: string;
   empresa: string;
   titulo: string;
-  valorHora: number;
+  tipoCobranca?: TipoCobranca;
+  valorFixo?: number;
+  valorHora?: number;
   /**
    * Horas úteis por dia (1..24). Usado para estimativas de término.
    */
@@ -10,6 +12,8 @@ export interface Projeto {
   createdAt: string;
   updatedAt: string;
 }
+
+export type TipoCobranca = "horas" | "fixo";
 
 export type StatusAtividade = "pendente" | "em_execucao" | "concluida";
 
@@ -32,7 +36,9 @@ export interface Atividade {
 export interface CreateProjetoDTO {
   empresa: string;
   titulo: string;
-  valorHora: number;
+  tipoCobranca: TipoCobranca;
+  valorFixo?: number;
+  valorHora?: number;
   horasUteisPorDia: number;
 }
 

@@ -94,7 +94,11 @@ export default function ProjetoDetalhesPage() {
   const totalCusto = atividadesDoProjeto.reduce((sum, atividade) => {
     return sum + atividade.custoTarefa;
   }, 0);
-  const lucroAtualEstimado = totalHorasUtilizadas * projeto.valorHora;
+  
+  const lucroAtualEstimado = 
+    projeto.tipoCobranca === "fixo"
+      ? (projeto.valorFixo ?? 0)
+      : totalHorasUtilizadas * projeto.valorHora;
 
   return (
     <div className="space-y-6">
@@ -228,10 +232,14 @@ export default function ProjetoDetalhesPage() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
           <p className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">
-            Valor por Hora
+            {projeto.tipoCobranca === "fixo" ? "Valor do Projeto" : "Valor por Hora"}
           </p>
           <p className="text-2xl font-bold text-gray-900 dark:text-white">
-            {formatCurrency(projeto.valorHora)}
+            {formatCurrency(
+              projeto.tipoCobranca === "fixo"
+                ? projeto.valorFixo ?? 0
+                : projeto.valorHora
+            )}
           </p>
         </div>
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
@@ -249,13 +257,16 @@ export default function ProjetoDetalhesPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <p className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">
-                Lucro atual estimado
+                {projeto.tipoCobranca === "fixo" ? "Valor do Projeto" : "Lucro atual estimado"}
               </p>
               <p className="text-2xl font-bold text-gray-900 dark:text-white">
                 {formatCurrency(lucroAtualEstimado)}
               </p>
               <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                {totalHorasUtilizadas}h × {formatCurrency(projeto.valorHora)}/h
+                {projeto.tipoCobranca === "fixo" 
+                  ? "Valor fixo fechado"
+                  : `${totalHorasUtilizadas}h × ${formatCurrency(projeto.valorHora)}/h`
+                }
               </p>
             </div>
             <div className="sm:border-l sm:border-gray-200 sm:dark:border-gray-700 sm:pl-4">

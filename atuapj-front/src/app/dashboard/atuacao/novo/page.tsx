@@ -222,7 +222,7 @@ export default function NovaAtuacaoPage() {
                 <option value="">Selecione um projeto</option>
                 {projetos.map((p) => (
                   <option key={p.id} value={p.id}>
-                    {p.titulo}
+                    {p.empresa} - {p.titulo}
                   </option>
                 ))}
               </select>

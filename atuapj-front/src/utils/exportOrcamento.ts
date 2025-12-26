@@ -128,7 +128,12 @@ export async function exportOrcamentoToPdf(params: {
     (sum, a) => sum + (a.horasAtuacao ?? 0),
     0
   );
-  const totalCustoCalculado = totalHoras * params.projeto.valorHora;
+  
+  const totalCustoCalculado = 
+    params.projeto.tipoCobranca === "fixo"
+      ? (params.projeto.valorFixo ?? 0)
+      : totalHoras * params.projeto.valorHora;
+
   const totalCustoTarefa = atividadesSelecionadas.reduce(
     (sum, a) => sum + (a.custoTarefa ?? 0),
     0
@@ -153,11 +158,20 @@ export async function exportOrcamentoToPdf(params: {
   cursorY += 12;
   doc.text(`Empresa: ${params.empresa}`, leftX, cursorY);
   cursorY += 12;
-  doc.text(
-    `Valor/hora: ${formatCurrency(params.projeto.valorHora)} | Horas úteis/dia: ${params.projeto.horasUteisPorDia}`,
-    leftX,
-    cursorY
-  );
+  
+  if (params.projeto.tipoCobranca === "fixo") {
+    doc.text(
+      `Valor do Projeto: ${formatCurrency(params.projeto.valorFixo ?? 0)} | Horas úteis/dia: ${params.projeto.horasUteisPorDia}`,
+      leftX,
+      cursorY
+    );
+  } else {
+    doc.text(
+      `Valor/hora: ${formatCurrency(params.projeto.valorHora)} | Horas úteis/dia: ${params.projeto.horasUteisPorDia}`,
+      leftX,
+      cursorY
+    );
+  }
 
   // Coluna Direita: Resumo Financeiro
   let rightCursorY = startY;
@@ -167,8 +181,9 @@ export async function exportOrcamentoToPdf(params: {
   doc.setFontSize(10);
   doc.text(`Horas estimadas: ${totalHoras}h`, rightX, rightCursorY);
   rightCursorY += 12;
+  
   doc.text(
-    `Custo: ${formatCurrency(totalCustoCalculado)}`,
+    `${params.projeto.tipoCobranca === "fixo" ? "Valor Total" : "Custo Calculado"}: ${formatCurrency(totalCustoCalculado)}`,
     rightX,
     rightCursorY
   );
