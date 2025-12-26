@@ -73,7 +73,11 @@ export default function NovaAtividadePage() {
     if (isNaN(horas) || horas <= 0) {
       return { dataFim: null, custo: null };
     }
-    const dataFimISO = calcularDataFimEstimada(formData.dataInicio, horas);
+    const dataFimISO = calcularDataFimEstimada(
+      formData.dataInicio,
+      horas,
+      projeto.horasUteisPorDia
+    );
     const custo = horas * (projeto?.valorHora || 0);
 
     return {

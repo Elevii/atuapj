@@ -17,12 +17,14 @@ export default function EditarProjetoPage() {
     empresa?: string;
     titulo?: string;
     valorHora?: string;
+    horasUteisPorDia?: string;
   }>({});
 
   const [formData, setFormData] = useState({
     empresa: "",
     titulo: "",
     valorHora: "",
+    horasUteisPorDia: "8",
   });
 
   useEffect(() => {
@@ -31,6 +33,7 @@ export default function EditarProjetoPage() {
         empresa: projeto.empresa,
         titulo: projeto.titulo,
         valorHora: projeto.valorHora.toFixed(2).replace(".", ","),
+        horasUteisPorDia: String(projeto.horasUteisPorDia ?? 8),
       });
     }
   }, [projeto]);
@@ -91,6 +94,7 @@ export default function EditarProjetoPage() {
       empresa?: string;
       titulo?: string;
       valorHora?: string;
+      horasUteisPorDia?: string;
     } = {};
 
     if (!formData.empresa.trim()) {
@@ -112,6 +116,13 @@ export default function EditarProjetoPage() {
       }
     }
 
+    const horasUteis = parseInt(formData.horasUteisPorDia, 10);
+    if (!formData.horasUteisPorDia) {
+      newErrors.horasUteisPorDia = "Horas úteis por dia é obrigatório";
+    } else if (isNaN(horasUteis) || horasUteis < 1 || horasUteis > 24) {
+      newErrors.horasUteisPorDia = "Horas úteis por dia deve ser entre 1 e 24";
+    }
+
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
       return;
@@ -123,6 +134,7 @@ export default function EditarProjetoPage() {
         empresa: formData.empresa.trim(),
         titulo: formData.titulo.trim(),
         valorHora: parseCurrency(formData.valorHora),
+        horasUteisPorDia: parseInt(formData.horasUteisPorDia, 10),
       });
 
       router.push(`/dashboard/projetos/${projetoId}`);
@@ -262,6 +274,41 @@ export default function EditarProjetoPage() {
                 {errors.valorHora}
               </p>
             )}
+          </div>
+
+          {/* Horas úteis por dia */}
+          <div>
+            <label
+              htmlFor="horasUteisPorDia"
+              className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+            >
+              Horas úteis por dia <span className="text-red-500">*</span>
+            </label>
+            <input
+              id="horasUteisPorDia"
+              name="horasUteisPorDia"
+              type="number"
+              min="1"
+              max="24"
+              step="1"
+              required
+              value={formData.horasUteisPorDia}
+              onChange={handleChange}
+              className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:placeholder-gray-400 ${
+                errors.horasUteisPorDia
+                  ? "border-red-500 focus:ring-red-500 focus:border-red-500"
+                  : "border-gray-300"
+              }`}
+              placeholder="8"
+            />
+            {errors.horasUteisPorDia && (
+              <p className="mt-1 text-sm text-red-600 dark:text-red-400">
+                {errors.horasUteisPorDia}
+              </p>
+            )}
+            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              Usado para calcular o término estimado das atividades (dias úteis).
+            </p>
           </div>
 
           {/* Actions */}

@@ -3,6 +3,10 @@ export interface Projeto {
   empresa: string;
   titulo: string;
   valorHora: number;
+  /**
+   * Horas úteis por dia (1..24). Usado para estimativas de término.
+   */
+  horasUteisPorDia: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -27,6 +31,7 @@ export interface CreateProjetoDTO {
   empresa: string;
   titulo: string;
   valorHora: number;
+  horasUteisPorDia: number;
 }
 
 export interface CreateAtividadeDTO {

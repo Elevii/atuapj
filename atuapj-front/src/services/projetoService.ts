@@ -1,4 +1,5 @@
 import { Projeto, CreateProjetoDTO } from "@/types";
+import { DEFAULT_HORAS_UTEIS_POR_DIA } from "@/utils/estimativas";
 
 // Simulação de API - em produção será substituído por chamadas HTTP reais
 class ProjetoService {
@@ -9,7 +10,26 @@ class ProjetoService {
     
     try {
       const stored = localStorage.getItem(this.storageKey);
-      return stored ? JSON.parse(stored) : [];
+      const parsed = stored ? (JSON.parse(stored) as any[]) : [];
+      if (!Array.isArray(parsed)) return [];
+
+      // Migração: adiciona horasUteisPorDia (default 8) para projetos antigos
+      let needsSave = false;
+      const migrated = parsed.map((raw) => {
+        if (raw && typeof raw === "object") {
+          if (raw.horasUteisPorDia === undefined) {
+            needsSave = true;
+            return { ...raw, horasUteisPorDia: DEFAULT_HORAS_UTEIS_POR_DIA };
+          }
+        }
+        return raw;
+      }) as Projeto[];
+
+      if (needsSave) {
+        this.saveProjetosToStorage(migrated);
+      }
+
+      return migrated;
     } catch {
       return [];
     }

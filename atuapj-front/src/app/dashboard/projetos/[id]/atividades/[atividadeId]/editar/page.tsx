@@ -179,14 +179,20 @@ export default function EditarAtividadePage() {
   };
 
   const formatDate = (dateString: string) => {
+    if (!dateString) return "-";
     return new Date(dateString).toLocaleDateString("pt-BR");
   };
 
   const custoCalculado = parseFloat(formData.custoTarefa || "0");
-  const terminoEstimadoISO = calcularDataFimEstimada(
-    formData.dataInicio,
-    parseFloat(formData.horasAtuacao || "0")
-  );
+  const horasAtuacaoNum = parseFloat(formData.horasAtuacao || "0");
+  const terminoEstimadoISO =
+    formData.dataInicio && horasAtuacaoNum > 0
+      ? calcularDataFimEstimada(
+          formData.dataInicio,
+          horasAtuacaoNum,
+          projeto.horasUteisPorDia
+        )
+      : "";
 
   return (
     <div className="space-y-6">

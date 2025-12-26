@@ -67,7 +67,11 @@ export function AtividadeProvider({ children }: { children: ReactNode }) {
       throw new Error("Projeto não encontrado");
     }
 
-    const novaAtividade = await atividadeService.create(data, projeto.valorHora);
+    const novaAtividade = await atividadeService.create(
+      data,
+      projeto.valorHora,
+      projeto.horasUteisPorDia
+    );
     // Recarrega todas as atividades para garantir sincronização
     const allAtividades = await atividadeService.findAll();
     setAtividades(allAtividades);
@@ -90,7 +94,8 @@ export function AtividadeProvider({ children }: { children: ReactNode }) {
     const atividadeAtualizada = await atividadeService.update(
       id,
       data,
-      projeto?.valorHora
+      projeto?.valorHora,
+      projeto?.horasUteisPorDia
     );
     // Recarrega todas as atividades para garantir sincronização
     const allAtividades = await atividadeService.findAll();

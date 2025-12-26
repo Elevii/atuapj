@@ -52,8 +52,12 @@ class AtividadeService {
     }
   }
 
-  private calcularDataFim(dataInicio: string, horas: number): string {
-    return calcularDataFimEstimada(dataInicio, horas);
+  private calcularDataFim(
+    dataInicio: string,
+    horas: number,
+    horasUteisPorDia?: number
+  ): string {
+    return calcularDataFimEstimada(dataInicio, horas, horasUteisPorDia);
   }
 
   async findAll(): Promise<Atividade[]> {
@@ -73,10 +77,18 @@ class AtividadeService {
     return atividades.find((a) => a.id === id) || null;
   }
 
-  async create(data: CreateAtividadeDTO, valorHora: number): Promise<Atividade> {
+  async create(
+    data: CreateAtividadeDTO,
+    valorHora: number,
+    horasUteisPorDia?: number
+  ): Promise<Atividade> {
     await new Promise((resolve) => setTimeout(resolve, 500));
     
-    const dataFimEstimada = this.calcularDataFim(data.dataInicio, data.horasAtuacao);
+    const dataFimEstimada = this.calcularDataFim(
+      data.dataInicio,
+      data.horasAtuacao,
+      horasUteisPorDia
+    );
     const custoTarefa =
       data.custoTarefa ??
       this.calcularCustoTarefa({
@@ -105,7 +117,8 @@ class AtividadeService {
   async update(
     id: string,
     data: Partial<CreateAtividadeDTO> & { status?: StatusAtividade; horasUtilizadas?: number },
-    valorHora?: number
+    valorHora?: number,
+    horasUteisPorDia?: number
   ): Promise<Atividade> {
     await new Promise((resolve) => setTimeout(resolve, 400));
     
@@ -123,7 +136,11 @@ class AtividadeService {
     if (data.dataInicio || data.horasAtuacao) {
       const dataInicio = data.dataInicio || atividadeAtual.dataInicio;
       const horas = data.horasAtuacao || atividadeAtual.horasAtuacao;
-      dataAtualizada.dataFimEstimada = this.calcularDataFim(dataInicio, horas);
+      dataAtualizada.dataFimEstimada = this.calcularDataFim(
+        dataInicio,
+        horas,
+        horasUteisPorDia
+      );
     }
     
     // Custo da tarefa:

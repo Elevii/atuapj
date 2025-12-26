@@ -10,10 +10,22 @@ export function calcularDataFimEstimada(
   horasTotais: number,
   horasUteisPorDia: number = DEFAULT_HORAS_UTEIS_POR_DIA
 ): string {
-  const horasPorDia = horasUteisPorDia;
-  const diasNecessarios = Math.ceil(horasTotais / horasPorDia);
+  if (!dataInicioISO) return "";
 
   const dataInicioObj = new Date(dataInicioISO);
+  if (Number.isNaN(dataInicioObj.getTime())) return "";
+
+  const horas = Number(horasTotais);
+  if (!Number.isFinite(horas) || horas <= 0) return "";
+
+  const horasPorDiaInput = Number(horasUteisPorDia);
+  const horasPorDia =
+    Number.isFinite(horasPorDiaInput) && horasPorDiaInput >= 1 && horasPorDiaInput <= 24
+      ? horasPorDiaInput
+      : DEFAULT_HORAS_UTEIS_POR_DIA;
+
+  const diasNecessarios = Math.ceil(horas / horasPorDia);
+
   dataInicioObj.setHours(0, 0, 0, 0);
   const dataFim = new Date(dataInicioObj);
 
