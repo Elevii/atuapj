@@ -109,18 +109,6 @@ export async function exportOrcamentoToPdf(params: {
   const marginX = 40;
   let cursorY = 40;
 
-  doc.setFontSize(16);
-  doc.text(params.orcamento.titulo, marginX, cursorY);
-  cursorY += 18;
-
-  doc.setFontSize(10);
-  doc.text(`Projeto: ${params.projeto.titulo}`, marginX, cursorY);
-  cursorY += 14;
-  doc.text(`Empresa: ${params.empresa}`, marginX, cursorY);
-  cursorY += 14;
-  doc.text(`Valor/hora: ${formatCurrency(params.projeto.valorHora)} | Horas úteis/dia: ${params.projeto.horasUteisPorDia}`, marginX, cursorY);
-  cursorY += 18;
-
   const itensOrdenados = params.orcamento.itens
     .slice()
     .sort((a, b) => (a.ordem ?? 0) - (b.ordem ?? 0));
@@ -132,19 +120,61 @@ export async function exportOrcamentoToPdf(params: {
   const totalCustoCalculado = totalHoras * params.projeto.valorHora;
   const totalCustoTarefa = atividadesSelecionadas.reduce((sum, a) => sum + (a.custoTarefa ?? 0), 0);
 
-  // Resumo
-  doc.setFontSize(12);
-  doc.text("Resumo", marginX, cursorY);
-  cursorY += 10;
-  doc.setFontSize(10);
-  doc.text(`Horas estimadas: ${totalHoras}h`, marginX, cursorY);
-  cursorY += 14;
-  doc.text(`Custo calculado: ${formatCurrency(totalCustoCalculado)}`, marginX, cursorY);
-  cursorY += 14;
-  doc.text(`Custo da tarefa (manual): ${formatCurrency(totalCustoTarefa)}`, marginX, cursorY);
+  doc.setFontSize(16);
+  doc.text(params.orcamento.titulo, marginX, cursorY);
   cursorY += 18;
 
-  // Cronograma
+  // Layout: Orçamento (Esquerda) | Resumo (Direita)
+  const leftX = marginX;
+  const rightX = doc.internal.pageSize.width / 2 + 20;
+  
+  const startY = cursorY;
+  
+  // Coluna Esquerda: Informações do Orçamento
+  doc.setFontSize(12);
+  doc.text("Projeto", leftX, cursorY);
+  cursorY += 14;
+  doc.setFontSize(10);
+  doc.text(`Projeto: ${params.projeto.titulo}`, leftX, cursorY);
+  cursorY += 12;
+  doc.text(`Empresa: ${params.empresa}`, leftX, cursorY);
+  cursorY += 12;
+  doc.text(`Valor/hora: ${formatCurrency(params.projeto.valorHora)} | Horas úteis/dia: ${params.projeto.horasUteisPorDia}`, leftX, cursorY);
+  
+  if (params.orcamento.observacoes) {
+    cursorY += 16;
+    doc.setFontSize(12);
+    doc.text("Observações", leftX, cursorY);
+    cursorY += 14;
+    doc.setFontSize(10);
+    const splitText = doc.splitTextToSize(params.orcamento.observacoes, doc.internal.pageSize.width / 2 - 40);
+    doc.text(splitText, leftX, cursorY);
+    cursorY += splitText.length * 12; // Ajusta cursor baseado nas linhas
+  }
+
+  // Coluna Direita: Resumo Financeiro
+  let rightCursorY = startY;
+  doc.setFontSize(12);
+  doc.text("Resumo", rightX, rightCursorY);
+  rightCursorY += 14;
+  doc.setFontSize(10);
+  doc.text(`Horas estimadas: ${totalHoras}h`, rightX, rightCursorY);
+  rightCursorY += 12;
+  doc.text(`Custo calculado: ${formatCurrency(totalCustoCalculado)}`, rightX, rightCursorY);
+  rightCursorY += 12;
+  doc.text(`Custo da tarefa (manual): ${formatCurrency(totalCustoTarefa)}`, rightX, rightCursorY);
+  
+  // Sincroniza cursorY com o maior dos dois
+  cursorY = Math.max(cursorY, rightCursorY) + 30;
+
+  // Título centralizado
+  doc.setFontSize(14);
+  const textTitle = "Resumo de atividades";
+  const textWidth = doc.getTextWidth(textTitle);
+  doc.text(textTitle, (doc.internal.pageSize.width - textWidth) / 2, cursorY);
+  cursorY += 30;
+
+  // Cronograma (geração unificada para uso interno)
   const cronogramaFull = gerarCronogramaSequencial({
     dataInicioProjetoISO: params.orcamento.dataInicioProjeto,
     horasUteisPorDia: params.projeto.horasUteisPorDia,
@@ -156,43 +186,81 @@ export async function exportOrcamentoToPdf(params: {
     })),
   });
 
-  // Se usar entregáveis, o cronograma deve ser segmentado por entregável
-  if (params.orcamento.usarEntregaveis && params.orcamento.entregaveis?.length) {
-    // Apenas título da seção geral
-    doc.setFontSize(12);
-    doc.text("Cronograma por Entregável", marginX, cursorY);
-    cursorY += 12;
-
+  // Renderização por entregável (obrigatório agora)
+  if (params.orcamento.entregaveis?.length) {
     const entregaveis = params.orcamento.entregaveis.slice().sort((a, b) => a.ordem - b.ordem);
 
     for (const ent of entregaveis) {
-      if (cursorY > 740) {
-        doc.addPage();
-        cursorY = 40;
-      }
-
       // Filtra itens deste entregável
       const itensEntregavelIds = itensOrdenados
         .filter((i) => i.entregavelId === ent.id)
         .map((i) => i.atividadeId);
-      const cronogramaEnt = cronogramaFull.filter((c) => itensEntregavelIds.includes(c.atividadeId));
 
-      if (cronogramaEnt.length > 0) {
-        doc.setFontSize(10);
-        doc.text(`Cronograma: ${ent.titulo}`, marginX, cursorY);
-        cursorY += 6;
+      // Se entregável não tem itens e não tem checkpoints, pula (ou exibe vazio se desejar)
+      if (itensEntregavelIds.length === 0 && ent.checkpoints.length === 0) continue;
+
+      if (cursorY > 720) {
+        doc.addPage();
+        cursorY = 40;
+      }
+
+      // Cabeçalho do Entregável
+      doc.setFontSize(12);
+      doc.text(ent.titulo, marginX, cursorY);
+      cursorY += 14;
+
+      // Subtotais do Entregável
+      const subtotal = subtotalForEntregavel({
+        entregavel: ent,
+        itens: itensOrdenados,
+        atividadesById,
+        projeto: params.projeto,
+      });
+
+      doc.setFontSize(10);
+      doc.text(
+        `Horas Estimadas: ${subtotal.horas}h | Custo Estimado: ${formatCurrency(subtotal.custoTarefa)}`,
+        marginX,
+        cursorY
+      );
+      cursorY += 14;
+
+      // Tabela de atividades
+      const atividadesDoEntregavel = itensOrdenados
+        .filter((it) => it.entregavelId === ent.id)
+        .map((it) => {
+          const ativ = atividadesById.get(it.atividadeId);
+          const crono = cronogramaFull.find((c) => c.atividadeId === it.atividadeId);
+          return { ativ, crono };
+        })
+        .filter((i) => i.ativ); // Remove nulos
+
+      if (atividadesDoEntregavel.length > 0) {
+        const cols = params.orcamento.camposSelecionados;
+        const head = [
+          ...cols.map(fieldLabel),
+          // Adiciona colunas de cronograma se não estiverem selecionadas explicitamente
+          "Início",
+          "Fim"
+        ];
+
+        const body = atividadesDoEntregavel.map(({ ativ, crono }) => {
+          if (!ativ) return [];
+          const rowData = cols.map((field) => fieldValue({ field, atividade: ativ, projeto: params.projeto }));
+          return [
+            ...rowData,
+            crono ? formatDateBr(crono.inicio) : "-",
+            crono ? formatDateBr(crono.fim) : "-",
+          ];
+        });
 
         // @ts-expect-error plugin
         autoTable(doc, {
           startY: cursorY,
-          head: [["Atividade", "Início", "Fim"]],
-          body: cronogramaEnt.map((c) => [
-            atividadesById.get(c.atividadeId)?.titulo ?? c.atividadeId,
-            formatDateBr(c.inicio),
-            formatDateBr(c.fim),
-          ]),
-          styles: { fontSize: 9, cellPadding: 4 },
-          headStyles: { fontSize: 10 },
+          head: [head],
+          body,
+          styles: { fontSize: 9, cellPadding: 4, overflow: "linebreak" },
+          headStyles: { fontSize: 10, fillColor: [240, 240, 240], textColor: [0, 0, 0] },
           theme: "grid",
           margin: { left: marginX, right: marginX },
         });
@@ -200,122 +268,40 @@ export async function exportOrcamentoToPdf(params: {
         // @ts-expect-error plugin
         cursorY = doc.lastAutoTable.finalY + 14;
       }
-    }
-  } else {
-    // Modo simples: cronograma unificado
-    doc.setFontSize(12);
-    doc.text("Cronograma", marginX, cursorY);
-    cursorY += 8;
 
-    // @ts-expect-error plugin
-    autoTable(doc, {
-      startY: cursorY,
-      head: [["Atividade", "Início", "Fim"]],
-      body: cronogramaFull.map((c) => [
-        atividadesById.get(c.atividadeId)?.titulo ?? c.atividadeId,
-        formatDateBr(c.inicio),
-        formatDateBr(c.fim),
-      ]),
-      styles: { fontSize: 9, cellPadding: 4 },
-      headStyles: { fontSize: 10 },
-      theme: "grid",
-      margin: { left: marginX, right: marginX },
-    });
-
-    // @ts-expect-error plugin
-    cursorY = doc.lastAutoTable.finalY + 18;
-  }
-
-  // Seções por entregável (Detalhes)
-  if (params.orcamento.usarEntregaveis && params.orcamento.entregaveis?.length) {
-    const entregaveis = params.orcamento.entregaveis.slice().sort((a, b) => a.ordem - b.ordem);
-    for (const ent of entregaveis) {
-      if (cursorY > 740) {
-        doc.addPage();
-        cursorY = 40;
-      }
-
-      doc.setFontSize(12);
-      doc.text(`Detalhes: ${ent.titulo}`, marginX, cursorY);
-      cursorY += 12;
-      // @ts-expect-error type
-      if (ent.descricao) {
-        doc.setFontSize(10);
-        // @ts-expect-error type
-        doc.text(ent.descricao, marginX, cursorY);
-        cursorY += 14;
-      }
-
+      // Checkpoints
       if (ent.checkpoints?.length) {
+        if (cursorY > 740) {
+          doc.addPage();
+          cursorY = 40;
+        }
+        
         doc.setFontSize(10);
-        doc.text("Checkpoints", marginX, cursorY);
-        cursorY += 6;
+        doc.text("Marcos / Checkpoints:", marginX, cursorY);
+        cursorY += 8;
 
         // @ts-expect-error plugin
         autoTable(doc, {
           startY: cursorY,
-          head: [["Título", "Data alvo"]],
+          head: [["Título", "Data Alvo"]],
           body: ent.checkpoints
             .slice()
             // @ts-expect-error type
             .sort((a, b) => (a.ordem ?? 0) - (b.ordem ?? 0))
             .map((c) => [c.titulo, formatDateBr(c.dataAlvo ?? "")]),
           styles: { fontSize: 9, cellPadding: 4 },
-          headStyles: { fontSize: 10 },
+          headStyles: { fontSize: 10, fillColor: [250, 250, 250], textColor: [0, 0, 0] },
           theme: "grid",
           margin: { left: marginX, right: marginX },
         });
+
         // @ts-expect-error plugin
-        cursorY = doc.lastAutoTable.finalY + 12;
-      }
-
-      if (params.orcamento.mostrarSubtotaisPorEntregavel) {
-        const subtotal = subtotalForEntregavel({
-          entregavel: ent,
-          itens: itensOrdenados,
-          atividadesById,
-          projeto: params.projeto,
-        });
-
-        doc.setFontSize(10);
-        doc.text(
-          `Subtotal: ${subtotal.horas}h | Custo calculado: ${formatCurrency(subtotal.custoCalculado)} | Custo tarefa: ${formatCurrency(subtotal.custoTarefa)}`,
-          marginX,
-          cursorY
-        );
-        cursorY += 14;
+        cursorY = doc.lastAutoTable.finalY + 20;
+      } else {
+        cursorY += 10;
       }
     }
   }
-
-  // Tabela das atividades (campos configurados)
-  if (cursorY > 740) {
-    doc.addPage();
-    cursorY = 40;
-  }
-
-  doc.setFontSize(12);
-  doc.text("Atividades", marginX, cursorY);
-  cursorY += 8;
-
-  const cols = params.orcamento.camposSelecionados;
-  const head = cols.map(fieldLabel);
-  const body = itensOrdenados.map((it) => {
-    const atividade = atividadesById.get(it.atividadeId);
-    if (!atividade) return cols.map(() => "");
-    return cols.map((field) => fieldValue({ field, atividade, projeto: params.projeto }));
-  });
-
-  // @ts-expect-error plugin
-  autoTable(doc, {
-    startY: cursorY,
-    head: [head],
-    body,
-    styles: { fontSize: 9, cellPadding: 4, overflow: "linebreak" },
-    headStyles: { fontSize: 10 },
-    theme: "grid",
-    margin: { left: marginX, right: marginX },
-  });
 
   doc.save(params.filename ?? "orcamento.pdf");
 }

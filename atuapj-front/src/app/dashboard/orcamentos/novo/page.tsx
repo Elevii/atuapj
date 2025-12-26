@@ -44,8 +44,9 @@ export default function NovoOrcamentoPage() {
       "custoTarefa",
     ] as OrcamentoCampoAtividade[],
     atividadeIds: [] as string[],
-    usarEntregaveis: false,
-    mostrarSubtotaisPorEntregavel: false,
+    usarEntregaveis: true,
+    mostrarSubtotaisPorEntregavel: true,
+    introText: "",
   });
 
   const projeto = useMemo(
@@ -62,15 +63,24 @@ export default function NovoOrcamentoPage() {
     Record<string, { entregavelId?: string; inicioOverride?: string; fimOverride?: string }>
   >({});
 
+  const [entregaveis, setEntregaveis] = useState<OrcamentoEntregavel[]>([
+    {
+      id: "ent_default_1",
+      titulo: "Entregável 1",
+      ordem: 0,
+      checkpoints: [],
+    },
+  ]);
+
   const itens: OrcamentoItem[] = useMemo(() => {
     return form.atividadeIds.map((atividadeId, idx) => ({
       atividadeId,
       ordem: idx,
-      entregavelId: itemMeta[atividadeId]?.entregavelId,
+      entregavelId: itemMeta[atividadeId]?.entregavelId || entregaveis[0]?.id, // Default to first deliverable
       inicioOverride: itemMeta[atividadeId]?.inicioOverride,
       fimOverride: itemMeta[atividadeId]?.fimOverride,
     }));
-  }, [form.atividadeIds, itemMeta]);
+  }, [form.atividadeIds, itemMeta, entregaveis]);
 
   const cronogramaPreview = useMemo(() => {
     if (!projeto) return [];
@@ -91,14 +101,36 @@ export default function NovoOrcamentoPage() {
     });
   }, [atividadesDoProjeto, form.dataInicioProjeto, itens, projeto]);
 
-  const [entregaveis, setEntregaveis] = useState<OrcamentoEntregavel[]>([]);
-
   const addEntregavel = () => {
     const ordem = entregaveis.length;
     setEntregaveis((prev) => [
       ...prev,
       { id: `ent_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`, titulo: `Entregável ${ordem + 1}`, ordem, checkpoints: [] },
     ]);
+  };
+
+  const removeEntregavel = (id: string) => {
+    // Não permite remover se for o único
+    if (entregaveis.length <= 1) return;
+    
+    setEntregaveis((prev) => {
+      const filtered = prev.filter((e) => e.id !== id);
+      // Re-ordena e reatribui itens órfãos para o primeiro disponível
+      const firstId = filtered[0].id;
+      
+      // Atualiza metadados dos itens que estavam no entregável removido
+      setItemMeta(meta => {
+        const newMeta = { ...meta };
+        Object.keys(newMeta).forEach(key => {
+          if (newMeta[key].entregavelId === id) {
+            newMeta[key] = { ...newMeta[key], entregavelId: firstId };
+          }
+        });
+        return newMeta;
+      });
+      
+      return filtered;
+    });
   };
 
   const addCheckpoint = (entregavelId: string) => {
@@ -156,6 +188,7 @@ export default function NovoOrcamentoPage() {
         usarEntregaveis: form.usarEntregaveis,
         mostrarSubtotaisPorEntregavel: form.usarEntregaveis ? form.mostrarSubtotaisPorEntregavel : false,
         entregaveis: form.usarEntregaveis ? entregaveis : undefined,
+        observacoes: form.introText,
       };
       const novo = await createOrcamento(data);
       router.push(`/dashboard/orcamentos/${novo.id}`);
@@ -210,6 +243,24 @@ export default function NovoOrcamentoPage() {
             {errors.titulo && (
               <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.titulo}</p>
             )}
+
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mt-4 mb-2">
+              Texto Introdutório (opcional)
+            </label>
+            <textarea
+              value={form.introText}
+              onChange={(e) => {
+                if (e.target.value.length <= 1000) {
+                  setForm((p) => ({ ...p, introText: e.target.value }));
+                }
+              }}
+              className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors dark:bg-gray-700 dark:text-white"
+              placeholder="Adicione um texto introdutório ao orçamento (máx 1000 caracteres)"
+              rows={3}
+            />
+            <p className="text-xs text-right text-gray-500 dark:text-gray-400 mt-1">
+              {form.introText.length}/1000
+            </p>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -452,61 +503,45 @@ export default function NovoOrcamentoPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-gray-900 dark:text-white">
-                    Entregáveis / checkpoints
+                    Entregáveis / Checkpoints
                   </p>
                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                    Opcional: organize o orçamento em entregáveis e marcos.
+                    Organize o orçamento em entregáveis. Sempre haverá pelo menos um entregável padrão.
                   </p>
                 </div>
+              </div>
+
+              <div className="space-y-3">
                 <label className="inline-flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
                   <input
                     type="checkbox"
-                    checked={form.usarEntregaveis}
+                    checked={form.mostrarSubtotaisPorEntregavel}
                     onChange={(e) =>
-                      setForm((p) => ({
-                        ...p,
-                        usarEntregaveis: e.target.checked,
-                        mostrarSubtotaisPorEntregavel: e.target.checked
-                          ? p.mostrarSubtotaisPorEntregavel
-                          : false,
-                      }))
+                      setForm((p) => ({ ...p, mostrarSubtotaisPorEntregavel: e.target.checked }))
                     }
                   />
-                  Ativar
+                  Mostrar subtotais por entregável no PDF
                 </label>
-              </div>
 
-              {form.usarEntregaveis && (
-                <div className="space-y-3">
-                  <label className="inline-flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
-                    <input
-                      type="checkbox"
-                      checked={form.mostrarSubtotaisPorEntregavel}
-                      onChange={(e) =>
-                        setForm((p) => ({ ...p, mostrarSubtotaisPorEntregavel: e.target.checked }))
-                      }
-                    />
-                    Mostrar subtotais por entregável
-                  </label>
+                <div className="flex items-center justify-between">
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    Entregáveis: {entregaveis.length}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={addEntregavel}
+                    className="px-3 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700"
+                  >
+                    Adicionar entregável
+                  </button>
+                </div>
 
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
-                      Entregáveis: {entregaveis.length}
-                    </p>
-                    <button
-                      type="button"
-                      onClick={addEntregavel}
-                      className="px-3 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700"
-                    >
-                      Adicionar entregável
-                    </button>
-                  </div>
-
-                  {entregaveis.map((e) => (
-                    <div
-                      key={e.id}
-                      className="rounded-lg border border-gray-200 dark:border-gray-700 p-3"
-                    >
+                {entregaveis.map((e) => (
+                  <div
+                    key={e.id}
+                    className="rounded-lg border border-gray-200 dark:border-gray-700 p-3"
+                  >
+                    <div className="flex items-center justify-between gap-2 mb-2">
                       <input
                         value={e.titulo}
                         onChange={(ev) =>
@@ -515,132 +550,145 @@ export default function NovoOrcamentoPage() {
                           )
                         }
                         className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white"
+                        placeholder="Nome do entregável"
                       />
-                      <div className="mt-3 space-y-2">
-                        <div className="flex items-center justify-between">
-                          <p className="text-xs text-gray-500 dark:text-gray-400">
-                            Checkpoints: {e.checkpoints.length}
-                          </p>
-                          <button
-                            type="button"
-                            onClick={() => addCheckpoint(e.id)}
-                            className="text-xs font-medium text-indigo-600 hover:text-indigo-700 dark:text-indigo-400"
-                          >
-                            Adicionar checkpoint
-                          </button>
-                        </div>
-
-                        {e.checkpoints.map((c) => (
-                          <div key={c.id} className="grid grid-cols-1 md:grid-cols-3 gap-2">
-                            <input
-                              value={c.titulo}
-                              onChange={(ev) =>
-                                setEntregaveis((prev) =>
-                                  prev.map((x) => {
-                                    if (x.id !== e.id) return x;
-                                    return {
-                                      ...x,
-                                      checkpoints: x.checkpoints.map((k) =>
-                                        k.id === c.id ? { ...k, titulo: ev.target.value } : k
-                                      ),
-                                    };
-                                  })
-                                )
-                              }
-                              className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white text-sm"
-                              placeholder="Título do checkpoint"
-                            />
-                            <input
-                              type="date"
-                              value={c.dataAlvo ?? ""}
-                              onChange={(ev) =>
-                                setEntregaveis((prev) =>
-                                  prev.map((x) => {
-                                    if (x.id !== e.id) return x;
-                                    return {
-                                      ...x,
-                                      checkpoints: x.checkpoints.map((k) =>
-                                        k.id === c.id ? { ...k, dataAlvo: ev.target.value || undefined } : k
-                                      ),
-                                    };
-                                  })
-                                )
-                              }
-                              className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white text-sm"
-                            />
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setEntregaveis((prev) =>
-                                  prev.map((x) => {
-                                    if (x.id !== e.id) return x;
-                                    return {
-                                      ...x,
-                                      checkpoints: x.checkpoints.filter((k) => k.id !== c.id),
-                                    };
-                                  })
-                                )
-                              }
-                              className="text-sm text-red-600 hover:text-red-800 dark:text-red-400"
-                            >
-                              Remover
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-
-                  {entregaveis.length > 0 && (
-                    <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-3">
-                      <p className="text-sm font-medium text-gray-900 dark:text-white mb-2">
-                        Atribuição de atividades
-                      </p>
-                      {form.atividadeIds.length === 0 ? (
-                        <p className="text-sm text-gray-600 dark:text-gray-400">
-                          Selecione atividades para atribuir.
-                        </p>
-                      ) : (
-                        <div className="space-y-2">
-                          {form.atividadeIds.map((atividadeId) => {
-                            const a = atividadesDoProjeto.find((x) => x.id === atividadeId);
-                            return (
-                              <div key={atividadeId} className="flex items-center justify-between gap-3">
-                                <span className="text-sm text-gray-900 dark:text-white truncate">
-                                  {a?.titulo ?? atividadeId}
-                                </span>
-                                <select
-                                  value={itemMeta[atividadeId]?.entregavelId ?? ""}
-                                  onChange={(ev) =>
-                                    setItemMeta((prev) => ({
-                                      ...prev,
-                                      [atividadeId]: {
-                                        ...prev[atividadeId],
-                                        entregavelId: ev.target.value || undefined,
-                                      },
-                                    }))
-                                  }
-                                  className="w-56 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white text-sm"
-                                >
-                                  <option value="">Sem entregável</option>
-                                  {entregaveis
-                                    .slice()
-                                    .sort((x, y) => x.ordem - y.ordem)
-                                    .map((e) => (
-                                      <option key={e.id} value={e.id}>
-                                        {e.titulo}
-                                      </option>
-                                    ))}
-                                </select>
-                              </div>
-                            );
-                          })}
-                        </div>
+                      {entregaveis.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => removeEntregavel(e.id)}
+                          className="text-red-600 hover:text-red-800 dark:text-red-400 p-2"
+                          title="Remover entregável"
+                        >
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        </button>
                       )}
                     </div>
-                  )}
-                </div>
-              )}
+
+                    <div className="mt-3 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs text-gray-500 dark:text-gray-400">
+                          Checkpoints: {e.checkpoints.length}
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => addCheckpoint(e.id)}
+                          className="text-xs font-medium text-indigo-600 hover:text-indigo-700 dark:text-indigo-400"
+                        >
+                          Adicionar checkpoint
+                        </button>
+                      </div>
+
+                      {e.checkpoints.map((c) => (
+                        <div key={c.id} className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                          <input
+                            value={c.titulo}
+                            onChange={(ev) =>
+                              setEntregaveis((prev) =>
+                                prev.map((x) => {
+                                  if (x.id !== e.id) return x;
+                                  return {
+                                    ...x,
+                                    checkpoints: x.checkpoints.map((k) =>
+                                      k.id === c.id ? { ...k, titulo: ev.target.value } : k
+                                    ),
+                                  };
+                                })
+                              )
+                            }
+                            className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white text-sm"
+                            placeholder="Título do checkpoint"
+                          />
+                          <input
+                            type="date"
+                            value={c.dataAlvo ?? ""}
+                            onChange={(ev) =>
+                              setEntregaveis((prev) =>
+                                prev.map((x) => {
+                                  if (x.id !== e.id) return x;
+                                  return {
+                                    ...x,
+                                    checkpoints: x.checkpoints.map((k) =>
+                                      k.id === c.id ? { ...k, dataAlvo: ev.target.value || undefined } : k
+                                    ),
+                                  };
+                                })
+                              )
+                            }
+                            className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white text-sm"
+                          />
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setEntregaveis((prev) =>
+                                prev.map((x) => {
+                                  if (x.id !== e.id) return x;
+                                  return {
+                                    ...x,
+                                    checkpoints: x.checkpoints.filter((k) => k.id !== c.id),
+                                  };
+                                })
+                              )
+                            }
+                            className="text-sm text-red-600 hover:text-red-800 dark:text-red-400"
+                          >
+                            Remover
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+
+                {entregaveis.length > 0 && (
+                  <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-3">
+                    <p className="text-sm font-medium text-gray-900 dark:text-white mb-2">
+                      Atribuição de atividades
+                    </p>
+                    {form.atividadeIds.length === 0 ? (
+                      <p className="text-sm text-gray-600 dark:text-gray-400">
+                        Selecione atividades para atribuir.
+                      </p>
+                    ) : (
+                      <div className="space-y-2">
+                        {form.atividadeIds.map((atividadeId) => {
+                          const a = atividadesDoProjeto.find((x) => x.id === atividadeId);
+                          return (
+                            <div key={atividadeId} className="flex items-center justify-between gap-3">
+                              <span className="text-sm text-gray-900 dark:text-white truncate">
+                                {a?.titulo ?? atividadeId}
+                              </span>
+                              <select
+                                value={itemMeta[atividadeId]?.entregavelId || entregaveis[0].id}
+                                onChange={(ev) =>
+                                  setItemMeta((prev) => ({
+                                    ...prev,
+                                    [atividadeId]: {
+                                      ...prev[atividadeId],
+                                      entregavelId: ev.target.value || undefined,
+                                    },
+                                  }))
+                                }
+                                className="w-56 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white text-sm"
+                              >
+                                {entregaveis
+                                  .slice()
+                                  .sort((x, y) => x.ordem - y.ordem)
+                                  .map((e) => (
+                                    <option key={e.id} value={e.id}>
+                                      {e.titulo}
+                                    </option>
+                                  ))}
+                              </select>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
