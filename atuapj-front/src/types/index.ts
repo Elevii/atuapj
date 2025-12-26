@@ -17,7 +17,7 @@ export interface Atividade {
   horasAtuacao: number;
   horasUtilizadas: number;
   dataFimEstimada: string;
-  lucroEstimado: number;
+  custoTarefa: number;
   status: StatusAtividade;
   createdAt: string;
   updatedAt: string;
@@ -36,5 +36,10 @@ export interface CreateAtividadeDTO {
   horasAtuacao: number;
   status?: StatusAtividade;
   horasUtilizadas?: number;
+  /**
+   * Custo da tarefa (BRL). Se não informado, será calculado automaticamente:
+   * horasAtuacao * valorHora
+   */
+  custoTarefa?: number;
 }
 

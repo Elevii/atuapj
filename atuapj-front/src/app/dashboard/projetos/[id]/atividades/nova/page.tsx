@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, FormEvent, useEffect } from "react";
+import { useState, FormEvent, useEffect, useRef } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import { useProjetos } from "@/contexts/ProjetoContext";
@@ -44,17 +44,33 @@ export default function NovaAtividadePage() {
     titulo: "",
     dataInicio: new Date().toISOString().split("T")[0], // Data atual como padrão
     horasAtuacao: "",
+    custoTarefa: "",
   });
+  const [custoManual, setCustoManual] = useState(false);
+  const lastHorasAtuacaoRef = useRef<string>("");
 
-  // Calcular data fim estimada e lucro
+  // Regra: alterou horas estimadas => volta para cálculo automático (último valor passa a ser o cálculo)
+  useEffect(() => {
+    const last = lastHorasAtuacaoRef.current;
+    const current = formData.horasAtuacao;
+
+    // ignora primeira execução (montagem)
+    if (last !== "" && last !== current && custoManual) {
+      setCustoManual(false);
+    }
+
+    lastHorasAtuacaoRef.current = current;
+  }, [custoManual, formData.horasAtuacao]);
+
+  // Calcular data fim estimada e custo
   const calcularEstimativas = () => {
     if (!formData.dataInicio || !formData.horasAtuacao || !projeto) {
-      return { dataFim: null, lucro: null };
+      return { dataFim: null, custo: null };
     }
 
     const horas = parseFloat(formData.horasAtuacao);
     if (isNaN(horas) || horas <= 0) {
-      return { dataFim: null, lucro: null };
+      return { dataFim: null, custo: null };
     }
 
     // Assumindo 8 horas por dia útil
@@ -82,19 +98,37 @@ export default function NovaAtividadePage() {
       }
     }
 
-    const lucro = horas * (projeto?.valorHora || 0);
+    const custo = horas * (projeto?.valorHora || 0);
 
     return {
       dataFim: dataFim.toISOString().split("T")[0],
-      lucro: lucro,
+      custo,
     };
   };
 
   const estimativas = calcularEstimativas();
 
+  // Cálculo automático do custo (a menos que o usuário tenha editado manualmente)
+  useEffect(() => {
+    if (custoManual) return;
+    if (!projeto) return;
+
+    const horas = parseFloat(formData.horasAtuacao);
+    if (isNaN(horas) || horas <= 0) {
+      setFormData((prev) => ({ ...prev, custoTarefa: "" }));
+      return;
+    }
+
+    const custo = horas * projeto.valorHora;
+    setFormData((prev) => ({ ...prev, custoTarefa: custo.toFixed(2) }));
+  }, [custoManual, formData.horasAtuacao, projeto]);
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
+    if (name === "custoTarefa") {
+      setCustoManual(true);
+    }
     // Limpar erro do campo quando o usuário começar a digitar
     if (errors[name as keyof typeof errors]) {
       setErrors((prev) => ({ ...prev, [name]: undefined }));
@@ -146,12 +180,18 @@ export default function NovaAtividadePage() {
     // Criar atividade
     setIsLoading(true);
     try {
+      const custoNumerico = parseFloat(formData.custoTarefa || "0");
       await createAtividade(
         {
           projetoId,
           titulo: formData.titulo.trim(),
           dataInicio: formData.dataInicio,
           horasAtuacao: parseFloat(formData.horasAtuacao),
+          ...(custoManual
+            ? {
+                custoTarefa: isNaN(custoNumerico) ? 0 : custoNumerico,
+              }
+            : {}),
         },
         projetoId
       );
@@ -308,6 +348,42 @@ export default function NovaAtividadePage() {
                 </p>
               </div>
 
+              {/* Custo da Tarefa */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label
+                    htmlFor="custoTarefa"
+                    className="block text-sm font-medium text-gray-700 dark:text-gray-300"
+                  >
+                    Custo da Tarefa
+                  </label>
+                  {custoManual && (
+                    <button
+                      type="button"
+                      onClick={() => setCustoManual(false)}
+                      className="text-xs font-medium text-indigo-600 hover:text-indigo-700 dark:text-indigo-400"
+                    >
+                      Usar cálculo automático
+                    </button>
+                  )}
+                </div>
+                <input
+                  id="custoTarefa"
+                  name="custoTarefa"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={formData.custoTarefa}
+                  onChange={handleChange}
+                  className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:placeholder-gray-400 border-gray-300"
+                  placeholder="Calculado automaticamente"
+                />
+                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                  Padrão: {formData.horasAtuacao || "0"}h ×{" "}
+                  {projeto ? formatCurrency(projeto.valorHora) : "R$ 0,00"}/h. Você pode ajustar.
+                </p>
+              </div>
+
               {/* Actions */}
               <div className="flex items-center justify-end space-x-4 pt-4 border-t border-gray-200 dark:border-gray-700">
                 <Link
@@ -374,12 +450,17 @@ export default function NovaAtividadePage() {
               </div>
               <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
                 <p className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">
-                  Lucro Estimado
+                  Custo da Tarefa
                 </p>
                 <p className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">
-                  {estimativas.lucro
-                    ? formatCurrency(estimativas.lucro)
-                    : "R$ 0,00"}
+                  {formData.custoTarefa
+                    ? formatCurrency(parseFloat(formData.custoTarefa) || 0)
+                    : estimativas.custo
+                      ? formatCurrency(estimativas.custo)
+                      : "R$ 0,00"}
+                </p>
+                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                  {custoManual ? "Valor ajustado manualmente" : "Calculado automaticamente"}
                 </p>
                 <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                   {formData.horasAtuacao || "0"}h ×{" "}

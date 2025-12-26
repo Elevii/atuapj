@@ -4,12 +4,38 @@ import { Atividade, CreateAtividadeDTO, StatusAtividade } from "@/types";
 class AtividadeService {
   private storageKey = "atuapj_atividades";
 
+  private calcularCustoTarefa(params: {
+    horasAtuacao: number;
+    valorHora: number;
+  }): number {
+    return params.horasAtuacao * params.valorHora;
+  }
+
   private getAtividadesFromStorage(): Atividade[] {
     if (typeof window === "undefined") return [];
     
     try {
       const stored = localStorage.getItem(this.storageKey);
-      return stored ? JSON.parse(stored) : [];
+      const parsed = stored ? (JSON.parse(stored) as any[]) : [];
+      if (!Array.isArray(parsed)) return [];
+
+      // Migração: lucroEstimado -> custoTarefa (mantém compatibilidade com dados antigos)
+      let needsSave = false;
+      const migrated = parsed.map((raw) => {
+        if (raw && typeof raw === "object") {
+          if (raw.custoTarefa === undefined && raw.lucroEstimado !== undefined) {
+            needsSave = true;
+            return { ...raw, custoTarefa: raw.lucroEstimado };
+          }
+        }
+        return raw;
+      }) as Atividade[];
+
+      if (needsSave) {
+        this.saveAtividadesToStorage(migrated);
+      }
+
+      return migrated;
     } catch {
       return [];
     }
@@ -72,7 +98,12 @@ class AtividadeService {
     await new Promise((resolve) => setTimeout(resolve, 500));
     
     const dataFimEstimada = this.calcularDataFim(data.dataInicio, data.horasAtuacao);
-    const lucroEstimado = data.horasAtuacao * valorHora;
+    const custoTarefa =
+      data.custoTarefa ??
+      this.calcularCustoTarefa({
+        horasAtuacao: data.horasAtuacao,
+        valorHora,
+      });
     
     const atividades = this.getAtividadesFromStorage();
     const novaAtividade: Atividade = {
@@ -81,7 +112,7 @@ class AtividadeService {
       horasUtilizadas: data.horasUtilizadas || 0,
       status: data.status || "pendente",
       dataFimEstimada,
-      lucroEstimado,
+      custoTarefa,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
@@ -116,21 +147,28 @@ class AtividadeService {
       dataAtualizada.dataFimEstimada = this.calcularDataFim(dataInicio, horas);
     }
     
-    if (data.horasAtuacao && valorHora) {
-      dataAtualizada.lucroEstimado = data.horasAtuacao * valorHora;
-    } else if (data.horasAtuacao) {
-      dataAtualizada.lucroEstimado =
-        data.horasAtuacao * (atividadeAtual.lucroEstimado / atividadeAtual.horasAtuacao);
-    }
-    
-    // Recalcular lucro baseado em horas utilizadas se fornecido (prioridade para horas utilizadas)
-    if (data.horasUtilizadas !== undefined && valorHora !== undefined) {
-      dataAtualizada.lucroEstimado = data.horasUtilizadas * valorHora;
-    } else if (data.horasUtilizadas !== undefined && atividadeAtual) {
-      // Se não tem valorHora, recalcula proporcionalmente
-      const valorHoraAtual =
-        atividadeAtual.lucroEstimado / atividadeAtual.horasAtuacao;
-      dataAtualizada.lucroEstimado = data.horasUtilizadas * valorHoraAtual;
+    // Custo da tarefa:
+    // - Se veio no payload, respeita (manual).
+    // - Caso contrário, recalcula automaticamente quando horas/valorHora mudarem.
+    const custoFoiInformado = data.custoTarefa !== undefined;
+    if (!custoFoiInformado) {
+      const horasAtuacao = data.horasAtuacao ?? atividadeAtual.horasAtuacao;
+
+      if (valorHora !== undefined) {
+        dataAtualizada.custoTarefa = this.calcularCustoTarefa({
+          horasAtuacao,
+          valorHora,
+        });
+      } else {
+        const valorHoraAtual =
+          atividadeAtual.horasAtuacao > 0
+            ? atividadeAtual.custoTarefa / atividadeAtual.horasAtuacao
+            : 0;
+        dataAtualizada.custoTarefa = this.calcularCustoTarefa({
+          horasAtuacao,
+          valorHora: valorHoraAtual,
+        });
+      }
     }
     
     atividades[index] = {

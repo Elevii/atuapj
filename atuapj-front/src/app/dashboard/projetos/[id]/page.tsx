@@ -91,13 +91,8 @@ export default function ProjetoDetalhesPage() {
     (sum, atividade) => sum + (atividade.horasUtilizadas || 0),
     0
   );
-  const totalLucro = atividadesDoProjeto.reduce((sum, atividade) => {
-    // Lucro baseado em horas utilizadas se houver, senão usa o estimado
-    // if (atividade.lucroEstimado && atividade.horasAtuacao > 0) {
-    //   const valorHora = atividade.horasAtuacao / atividade.horasAtuacao;
-    //   return sum + atividade.horasAtuacao * valorHora;
-    // }
-    return sum + atividade.lucroEstimado;
+  const totalCusto = atividadesDoProjeto.reduce((sum, atividade) => {
+    return sum + atividade.custoTarefa;
   }, 0);
 
   return (
@@ -251,10 +246,10 @@ export default function ProjetoDetalhesPage() {
         </div>
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
           <p className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">
-            Receita Estimada
+            Custo Estimado
           </p>
           <p className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">
-            {formatCurrency(totalLucro)}
+            {formatCurrency(totalCusto)}
           </p>
           <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
             Baseado em horas totais
@@ -349,7 +344,7 @@ export default function ProjetoDetalhesPage() {
                         Término Estimado
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                        Lucro Estimado
+                        Custo da Tarefa
                       </th>
                       <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                         Ações
@@ -406,7 +401,7 @@ export default function ProjetoDetalhesPage() {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="text-sm font-medium text-indigo-600 dark:text-indigo-400">
-                            {formatCurrency(atividade.lucroEstimado)}
+                            {formatCurrency(atividade.custoTarefa)}
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">

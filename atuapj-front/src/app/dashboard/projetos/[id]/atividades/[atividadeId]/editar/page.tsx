@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, FormEvent, useEffect } from "react";
+import { useState, FormEvent, useEffect, useRef } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import { useProjetos } from "@/contexts/ProjetoContext";
@@ -30,8 +30,11 @@ export default function EditarAtividadePage() {
     dataInicio: "",
     horasAtuacao: "",
     horasUtilizadas: "",
+    custoTarefa: "",
     status: "pendente" as StatusAtividade,
   });
+  const [custoManual, setCustoManual] = useState(false);
+  const lastHorasAtuacaoRef = useRef<string>("");
 
   useEffect(() => {
     if (atividade) {
@@ -40,10 +43,40 @@ export default function EditarAtividadePage() {
         dataInicio: atividade.dataInicio,
         horasAtuacao: atividade.horasAtuacao.toString(),
         horasUtilizadas: (atividade.horasUtilizadas || 0).toString(),
+        custoTarefa: (
+          // fallback para dados antigos caso ainda existam no state
+          (atividade as any).custoTarefa ?? (atividade as any).lucroEstimado ?? 0
+        ).toString(),
         status: atividade.status || "pendente",
       });
+      // inicializa a ref para não disparar "reset" na primeira interação
+      lastHorasAtuacaoRef.current = atividade.horasAtuacao.toString();
     }
   }, [atividade]);
+
+  // Regra: alterou horas estimadas => volta para cálculo automático (último valor passa a ser o cálculo)
+  useEffect(() => {
+    const last = lastHorasAtuacaoRef.current;
+    const current = formData.horasAtuacao;
+
+    if (last !== "" && last !== current && custoManual) {
+      setCustoManual(false);
+    }
+
+    lastHorasAtuacaoRef.current = current;
+  }, [custoManual, formData.horasAtuacao]);
+
+  // Cálculo automático do custo quando o usuário não está editando manualmente
+  useEffect(() => {
+    if (!projeto) return;
+    if (custoManual) return;
+
+    const horasAtuacao = parseFloat(formData.horasAtuacao || "0");
+    const custo = horasAtuacao * projeto.valorHora;
+
+    if (!Number.isFinite(custo)) return;
+    setFormData((prev) => ({ ...prev, custoTarefa: custo.toFixed(2) }));
+  }, [custoManual, formData.horasAtuacao, projeto]);
 
   if (!projeto || !atividade) {
     return (
@@ -68,6 +101,9 @@ export default function EditarAtividadePage() {
   ) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
+    if (name === "custoTarefa") {
+      setCustoManual(true);
+    }
     if (errors[name as keyof typeof errors]) {
       setErrors((prev) => ({ ...prev, [name]: undefined }));
     }
@@ -109,12 +145,18 @@ export default function EditarAtividadePage() {
 
     setIsLoading(true);
     try {
+      const custoNumerico = parseFloat(formData.custoTarefa || "0");
       await updateAtividade(atividadeId, {
         titulo: formData.titulo.trim(),
         dataInicio: formData.dataInicio,
         horasAtuacao: parseFloat(formData.horasAtuacao),
         horasUtilizadas: parseFloat(formData.horasUtilizadas || "0"),
         status: formData.status,
+        ...(custoManual
+          ? {
+              custoTarefa: isNaN(custoNumerico) ? 0 : custoNumerico,
+            }
+          : {}),
       });
 
       router.push(`/dashboard/projetos/${projetoId}`);
@@ -135,9 +177,7 @@ export default function EditarAtividadePage() {
     }).format(value);
   };
 
-  // Calcular lucro baseado em horas utilizadas
-  const lucroCalculado =
-    parseFloat(formData.horasUtilizadas || "0") * projeto.valorHora;
+  const custoCalculado = parseFloat(formData.custoTarefa || "0");
 
   return (
     <div className="space-y-6">
@@ -313,6 +353,41 @@ export default function EditarAtividadePage() {
                 </div>
               </div>
 
+              {/* Custo da Tarefa */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label
+                    htmlFor="custoTarefa"
+                    className="block text-sm font-medium text-gray-700 dark:text-gray-300"
+                  >
+                    Custo da Tarefa
+                  </label>
+                  {custoManual && (
+                    <button
+                      type="button"
+                      onClick={() => setCustoManual(false)}
+                      className="text-xs font-medium text-indigo-600 hover:text-indigo-700 dark:text-indigo-400"
+                    >
+                      Usar cálculo automático
+                    </button>
+                  )}
+                </div>
+                <input
+                  id="custoTarefa"
+                  name="custoTarefa"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={formData.custoTarefa}
+                  onChange={handleChange}
+                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors dark:bg-gray-700 dark:text-white dark:placeholder-gray-400"
+                  placeholder="Calculado automaticamente"
+                />
+                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                  {custoManual ? "Valor ajustado manualmente" : "Calculado automaticamente"}
+                </p>
+              </div>
+
               {/* Actions */}
               <div className="flex items-center justify-end space-x-4 pt-4 border-t border-gray-200 dark:border-gray-700">
                 <Link
@@ -396,13 +471,13 @@ export default function EditarAtividadePage() {
               </div>
               <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
                 <p className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">
-                  Lucro Realizado
+                  Custo da Tarefa
                 </p>
                 <p className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">
-                  {formatCurrency(lucroCalculado)}
+                  {formatCurrency(custoCalculado)}
                 </p>
                 <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                  {formData.horasUtilizadas || "0"}h ×{" "}
+                  {formData.horasAtuacao || "0"}h ×{" "}
                   {formatCurrency(projeto.valorHora)}/h
                 </p>
               </div>
@@ -413,4 +488,6 @@ export default function EditarAtividadePage() {
     </div>
   );
 }
+
+
 
