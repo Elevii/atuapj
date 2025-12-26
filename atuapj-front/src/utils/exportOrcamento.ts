@@ -15,7 +15,10 @@ const statusLabel: Record<StatusAtividade, string> = {
 };
 
 function formatCurrency(value: number) {
-  return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
+  return new Intl.NumberFormat("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  }).format(value);
 }
 
 function formatDateBr(iso: string) {
@@ -37,7 +40,7 @@ function fieldLabel(field: OrcamentoCampoAtividade): string {
     case "dataFimEstimada":
       return "Término";
     case "horasAtuacao":
-      return "Horas (HE)";
+      return "Horas";
     case "custoTarefa":
       return "Custo tarefa";
     case "custoCalculado":
@@ -73,7 +76,6 @@ function fieldValue(params: {
   }
 }
 
-
 function subtotalForEntregavel(params: {
   entregavel: OrcamentoEntregavel;
   itens: Orcamento["itens"];
@@ -84,9 +86,15 @@ function subtotalForEntregavel(params: {
     .filter((i) => i.entregavelId === params.entregavel.id)
     .map((i) => i.atividadeId);
 
-  const horas = atividadeIds.reduce((sum, id) => sum + (params.atividadesById.get(id)?.horasAtuacao ?? 0), 0);
+  const horas = atividadeIds.reduce(
+    (sum, id) => sum + (params.atividadesById.get(id)?.horasAtuacao ?? 0),
+    0
+  );
   const custoCalculado = horas * params.projeto.valorHora;
-  const custoTarefa = atividadeIds.reduce((sum, id) => sum + (params.atividadesById.get(id)?.custoTarefa ?? 0), 0);
+  const custoTarefa = atividadeIds.reduce(
+    (sum, id) => sum + (params.atividadesById.get(id)?.custoTarefa ?? 0),
+    0
+  );
 
   return { horas, custoCalculado, custoTarefa };
 }
@@ -116,9 +124,15 @@ export async function exportOrcamentoToPdf(params: {
     .map((i) => atividadesById.get(i.atividadeId))
     .filter(Boolean) as Atividade[];
 
-  const totalHoras = atividadesSelecionadas.reduce((sum, a) => sum + (a.horasAtuacao ?? 0), 0);
+  const totalHoras = atividadesSelecionadas.reduce(
+    (sum, a) => sum + (a.horasAtuacao ?? 0),
+    0
+  );
   const totalCustoCalculado = totalHoras * params.projeto.valorHora;
-  const totalCustoTarefa = atividadesSelecionadas.reduce((sum, a) => sum + (a.custoTarefa ?? 0), 0);
+  const totalCustoTarefa = atividadesSelecionadas.reduce(
+    (sum, a) => sum + (a.custoTarefa ?? 0),
+    0
+  );
 
   doc.setFontSize(16);
   doc.text(params.orcamento.titulo, marginX, cursorY);
@@ -127,9 +141,9 @@ export async function exportOrcamentoToPdf(params: {
   // Layout: Orçamento (Esquerda) | Resumo (Direita)
   const leftX = marginX;
   const rightX = doc.internal.pageSize.width / 2 + 20;
-  
+
   const startY = cursorY;
-  
+
   // Coluna Esquerda: Informações do Orçamento
   doc.setFontSize(12);
   doc.text("Projeto", leftX, cursorY);
@@ -139,18 +153,11 @@ export async function exportOrcamentoToPdf(params: {
   cursorY += 12;
   doc.text(`Empresa: ${params.empresa}`, leftX, cursorY);
   cursorY += 12;
-  doc.text(`Valor/hora: ${formatCurrency(params.projeto.valorHora)} | Horas úteis/dia: ${params.projeto.horasUteisPorDia}`, leftX, cursorY);
-  
-  if (params.orcamento.observacoes) {
-    cursorY += 16;
-    doc.setFontSize(12);
-    doc.text("Observações", leftX, cursorY);
-    cursorY += 14;
-    doc.setFontSize(10);
-    const splitText = doc.splitTextToSize(params.orcamento.observacoes, doc.internal.pageSize.width / 2 - 40);
-    doc.text(splitText, leftX, cursorY);
-    cursorY += splitText.length * 12; // Ajusta cursor baseado nas linhas
-  }
+  doc.text(
+    `Valor/hora: ${formatCurrency(params.projeto.valorHora)} | Horas úteis/dia: ${params.projeto.horasUteisPorDia}`,
+    leftX,
+    cursorY
+  );
 
   // Coluna Direita: Resumo Financeiro
   let rightCursorY = startY;
@@ -160,12 +167,41 @@ export async function exportOrcamentoToPdf(params: {
   doc.setFontSize(10);
   doc.text(`Horas estimadas: ${totalHoras}h`, rightX, rightCursorY);
   rightCursorY += 12;
-  doc.text(`Custo calculado: ${formatCurrency(totalCustoCalculado)}`, rightX, rightCursorY);
+  doc.text(
+    `Custo calculado: ${formatCurrency(totalCustoCalculado)}`,
+    rightX,
+    rightCursorY
+  );
   rightCursorY += 12;
-  doc.text(`Custo da tarefa (manual): ${formatCurrency(totalCustoTarefa)}`, rightX, rightCursorY);
-  
+  doc.text(
+    `Custo da tarefa (manual): ${formatCurrency(totalCustoTarefa)}`,
+    rightX,
+    rightCursorY
+  );
+
   // Sincroniza cursorY com o maior dos dois
   cursorY = Math.max(cursorY, rightCursorY) + 30;
+
+  if (params.orcamento.observacoes) {
+    // Calcula largura total disponível
+    const fullWidth = doc.internal.pageSize.width - 2 * marginX;
+
+    // Título das observações (opcional, ou pode ser só o texto)
+    doc.setFontSize(12);
+    doc.text("Apresentação", marginX, cursorY);
+    cursorY += 14;
+
+    doc.setFontSize(10);
+    // Quebra o texto para a largura total
+    const splitText = doc.splitTextToSize(
+      params.orcamento.observacoes,
+      fullWidth
+    );
+    doc.text(splitText, marginX, cursorY);
+
+    // Atualiza cursorY baseado na altura do texto + espaçamento extra
+    cursorY += splitText.length * 12 + 30;
+  }
 
   // Título centralizado
   doc.setFontSize(14);
@@ -188,7 +224,9 @@ export async function exportOrcamentoToPdf(params: {
 
   // Renderização por entregável (obrigatório agora)
   if (params.orcamento.entregaveis?.length) {
-    const entregaveis = params.orcamento.entregaveis.slice().sort((a, b) => a.ordem - b.ordem);
+    const entregaveis = params.orcamento.entregaveis
+      .slice()
+      .sort((a, b) => a.ordem - b.ordem);
 
     for (const ent of entregaveis) {
       // Filtra itens deste entregável
@@ -197,7 +235,8 @@ export async function exportOrcamentoToPdf(params: {
         .map((i) => i.atividadeId);
 
       // Se entregável não tem itens e não tem checkpoints, pula (ou exibe vazio se desejar)
-      if (itensEntregavelIds.length === 0 && ent.checkpoints.length === 0) continue;
+      if (itensEntregavelIds.length === 0 && ent.checkpoints.length === 0)
+        continue;
 
       if (cursorY > 720) {
         doc.addPage();
@@ -230,23 +269,31 @@ export async function exportOrcamentoToPdf(params: {
         .filter((it) => it.entregavelId === ent.id)
         .map((it) => {
           const ativ = atividadesById.get(it.atividadeId);
-          const crono = cronogramaFull.find((c) => c.atividadeId === it.atividadeId);
+          const crono = cronogramaFull.find(
+            (c) => c.atividadeId === it.atividadeId
+          );
           return { ativ, crono };
         })
         .filter((i) => i.ativ); // Remove nulos
 
       if (atividadesDoEntregavel.length > 0) {
-        const cols = params.orcamento.camposSelecionados;
+        // Remove 'dataInicio' das colunas selecionadas para evitar duplicação com o cronograma
+        const cols = params.orcamento.camposSelecionados.filter(
+          (c) => c !== "dataInicio"
+        );
+
         const head = [
           ...cols.map(fieldLabel),
           // Adiciona colunas de cronograma se não estiverem selecionadas explicitamente
           "Início",
-          "Fim"
+          "Fim",
         ];
 
         const body = atividadesDoEntregavel.map(({ ativ, crono }) => {
           if (!ativ) return [];
-          const rowData = cols.map((field) => fieldValue({ field, atividade: ativ, projeto: params.projeto }));
+          const rowData = cols.map((field) =>
+            fieldValue({ field, atividade: ativ, projeto: params.projeto })
+          );
           return [
             ...rowData,
             crono ? formatDateBr(crono.inicio) : "-",
@@ -260,7 +307,11 @@ export async function exportOrcamentoToPdf(params: {
           head: [head],
           body,
           styles: { fontSize: 9, cellPadding: 4, overflow: "linebreak" },
-          headStyles: { fontSize: 10, fillColor: [240, 240, 240], textColor: [0, 0, 0] },
+          headStyles: {
+            fontSize: 10,
+            fillColor: [240, 240, 240],
+            textColor: [0, 0, 0],
+          },
           theme: "grid",
           margin: { left: marginX, right: marginX },
         });
@@ -275,7 +326,7 @@ export async function exportOrcamentoToPdf(params: {
           doc.addPage();
           cursorY = 40;
         }
-        
+
         doc.setFontSize(10);
         doc.text("Marcos / Checkpoints:", marginX, cursorY);
         cursorY += 8;
@@ -290,7 +341,11 @@ export async function exportOrcamentoToPdf(params: {
             .sort((a, b) => (a.ordem ?? 0) - (b.ordem ?? 0))
             .map((c) => [c.titulo, formatDateBr(c.dataAlvo ?? "")]),
           styles: { fontSize: 9, cellPadding: 4 },
-          headStyles: { fontSize: 10, fillColor: [250, 250, 250], textColor: [0, 0, 0] },
+          headStyles: {
+            fontSize: 10,
+            fillColor: [250, 250, 250],
+            textColor: [0, 0, 0],
+          },
           theme: "grid",
           margin: { left: marginX, right: marginX },
         });
@@ -305,5 +360,3 @@ export async function exportOrcamentoToPdf(params: {
 
   doc.save(params.filename ?? "orcamento.pdf");
 }
-
-

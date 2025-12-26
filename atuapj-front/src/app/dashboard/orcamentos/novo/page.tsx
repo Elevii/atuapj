@@ -11,7 +11,10 @@ import {
   OrcamentoEntregavel,
   OrcamentoItem,
 } from "@/types";
-import { formatTodayISODateLocal, gerarCronogramaSequencial } from "@/utils/estimativas";
+import {
+  formatTodayISODateLocal,
+  gerarCronogramaSequencial,
+} from "@/utils/estimativas";
 
 export default function NovoOrcamentoPage() {
   const router = useRouter();
@@ -60,7 +63,10 @@ export default function NovoOrcamentoPage() {
   }, [atividades, form.projetoId]);
 
   const [itemMeta, setItemMeta] = useState<
-    Record<string, { entregavelId?: string; inicioOverride?: string; fimOverride?: string }>
+    Record<
+      string,
+      { entregavelId?: string; inicioOverride?: string; fimOverride?: string }
+    >
   >({});
 
   const [entregaveis, setEntregaveis] = useState<OrcamentoEntregavel[]>([
@@ -105,30 +111,35 @@ export default function NovoOrcamentoPage() {
     const ordem = entregaveis.length;
     setEntregaveis((prev) => [
       ...prev,
-      { id: `ent_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`, titulo: `Entregável ${ordem + 1}`, ordem, checkpoints: [] },
+      {
+        id: `ent_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+        titulo: `Entregável ${ordem + 1}`,
+        ordem,
+        checkpoints: [],
+      },
     ]);
   };
 
   const removeEntregavel = (id: string) => {
     // Não permite remover se for o único
     if (entregaveis.length <= 1) return;
-    
+
     setEntregaveis((prev) => {
       const filtered = prev.filter((e) => e.id !== id);
       // Re-ordena e reatribui itens órfãos para o primeiro disponível
       const firstId = filtered[0].id;
-      
+
       // Atualiza metadados dos itens que estavam no entregável removido
-      setItemMeta(meta => {
+      setItemMeta((meta) => {
         const newMeta = { ...meta };
-        Object.keys(newMeta).forEach(key => {
+        Object.keys(newMeta).forEach((key) => {
           if (newMeta[key].entregavelId === id) {
             newMeta[key] = { ...newMeta[key], entregavelId: firstId };
           }
         });
         return newMeta;
       });
-      
+
       return filtered;
     });
   };
@@ -170,8 +181,10 @@ export default function NovoOrcamentoPage() {
     const nextErrors: Record<string, string> = {};
     if (!form.projetoId) nextErrors.projetoId = "Projeto é obrigatório";
     if (!form.titulo.trim()) nextErrors.titulo = "Título é obrigatório";
-    if (form.atividadeIds.length === 0) nextErrors.atividadeIds = "Selecione ao menos uma atividade";
-    if (form.camposSelecionados.length === 0) nextErrors.camposSelecionados = "Selecione ao menos um campo";
+    if (form.atividadeIds.length === 0)
+      nextErrors.atividadeIds = "Selecione ao menos uma atividade";
+    if (form.camposSelecionados.length === 0)
+      nextErrors.camposSelecionados = "Selecione ao menos um campo";
     if (Object.keys(nextErrors).length > 0) {
       setErrors(nextErrors);
       return;
@@ -186,7 +199,9 @@ export default function NovoOrcamentoPage() {
         camposSelecionados: form.camposSelecionados,
         itens,
         usarEntregaveis: form.usarEntregaveis,
-        mostrarSubtotaisPorEntregavel: form.usarEntregaveis ? form.mostrarSubtotaisPorEntregavel : false,
+        mostrarSubtotaisPorEntregavel: form.usarEntregaveis
+          ? form.mostrarSubtotaisPorEntregavel
+          : false,
         entregaveis: form.usarEntregaveis ? entregaveis : undefined,
         observacoes: form.introText,
       };
@@ -207,8 +222,18 @@ export default function NovoOrcamentoPage() {
           href="/dashboard/orcamentos"
           className="text-sm text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200 mb-2 inline-flex items-center"
         >
-          <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+          <svg
+            className="w-4 h-4 mr-1"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M15 19l-7-7 7-7"
+            />
           </svg>
           Voltar para orçamentos
         </Link>
@@ -234,14 +259,18 @@ export default function NovoOrcamentoPage() {
             </label>
             <input
               value={form.titulo}
-              onChange={(e) => setForm((p) => ({ ...p, titulo: e.target.value }))}
+              onChange={(e) =>
+                setForm((p) => ({ ...p, titulo: e.target.value }))
+              }
               className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors dark:bg-gray-700 dark:border-gray-600 dark:text-white ${
                 errors.titulo ? "border-red-500" : "border-gray-300"
               }`}
               placeholder="Ex: Orçamento - Projeto X"
             />
             {errors.titulo && (
-              <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.titulo}</p>
+              <p className="mt-1 text-sm text-red-600 dark:text-red-400">
+                {errors.titulo}
+              </p>
             )}
 
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mt-4 mb-2">
@@ -287,7 +316,9 @@ export default function NovoOrcamentoPage() {
               ))}
             </select>
             {errors.projetoId && (
-              <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.projetoId}</p>
+              <p className="mt-1 text-sm text-red-600 dark:text-red-400">
+                {errors.projetoId}
+              </p>
             )}
           </div>
         </div>
@@ -308,7 +339,9 @@ export default function NovoOrcamentoPage() {
                   Selecione um projeto para listar as atividades.
                 </p>
               ) : (
-                <div className={`rounded-lg border border-gray-200 dark:border-gray-700 divide-y divide-gray-200 dark:divide-gray-700`}>
+                <div
+                  className={`rounded-lg border border-gray-200 dark:border-gray-700 divide-y divide-gray-200 dark:divide-gray-700`}
+                >
                   {atividadesDoProjeto.map((a) => (
                     <label
                       key={a.id}
@@ -338,7 +371,9 @@ export default function NovoOrcamentoPage() {
                 </div>
               )}
               {errors.atividadeIds && (
-                <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.atividadeIds}</p>
+                <p className="mt-1 text-sm text-red-600 dark:text-red-400">
+                  {errors.atividadeIds}
+                </p>
               )}
             </div>
 
@@ -363,19 +398,25 @@ export default function NovoOrcamentoPage() {
                           return {
                             ...prev,
                             camposSelecionados: has
-                              ? prev.camposSelecionados.filter((x) => x !== c.key)
+                              ? prev.camposSelecionados.filter(
+                                  (x) => x !== c.key
+                                )
                               : [...prev.camposSelecionados, c.key],
                           };
                         })
                       }
                       className="mt-1"
                     />
-                    <span className="text-sm text-gray-900 dark:text-white">{c.label}</span>
+                    <span className="text-sm text-gray-900 dark:text-white">
+                      {c.label}
+                    </span>
                   </label>
                 ))}
               </div>
               {errors.camposSelecionados && (
-                <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.camposSelecionados}</p>
+                <p className="mt-1 text-sm text-red-600 dark:text-red-400">
+                  {errors.camposSelecionados}
+                </p>
               )}
             </div>
           </div>
@@ -388,7 +429,8 @@ export default function NovoOrcamentoPage() {
                     Cronograma (preview)
                   </p>
                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                    Sequencial por dias úteis, com possibilidade de override por atividade (em breve).
+                    Sequencial por dias úteis, com possibilidade de override por
+                    atividade (em breve).
                   </p>
                 </div>
                 <div className="w-44">
@@ -398,7 +440,12 @@ export default function NovoOrcamentoPage() {
                   <input
                     type="date"
                     value={form.dataInicioProjeto}
-                    onChange={(e) => setForm((p) => ({ ...p, dataInicioProjeto: e.target.value }))}
+                    onChange={(e) =>
+                      setForm((p) => ({
+                        ...p,
+                        dataInicioProjeto: e.target.value,
+                      }))
+                    }
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white"
                   />
                 </div>
@@ -418,13 +465,15 @@ export default function NovoOrcamentoPage() {
                         Fim
                       </th>
                       <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
-                        Override
+                        Alterar datas
                       </th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                     {cronogramaPreview.map((c) => {
-                      const a = atividadesDoProjeto.find((x) => x.id === c.atividadeId);
+                      const a = atividadesDoProjeto.find(
+                        (x) => x.id === c.atividadeId
+                      );
                       return (
                         <tr key={c.atividadeId}>
                           <td className="px-3 py-2 text-sm text-gray-900 dark:text-white">
@@ -440,13 +489,16 @@ export default function NovoOrcamentoPage() {
                             <div className="flex items-center gap-2">
                               <input
                                 type="date"
-                                value={itemMeta[c.atividadeId]?.inicioOverride ?? ""}
+                                value={
+                                  itemMeta[c.atividadeId]?.inicioOverride ?? ""
+                                }
                                 onChange={(e) =>
                                   setItemMeta((prev) => ({
                                     ...prev,
                                     [c.atividadeId]: {
                                       ...prev[c.atividadeId],
-                                      inicioOverride: e.target.value || undefined,
+                                      inicioOverride:
+                                        e.target.value || undefined,
                                     },
                                   }))
                                 }
@@ -454,7 +506,9 @@ export default function NovoOrcamentoPage() {
                               />
                               <input
                                 type="date"
-                                value={itemMeta[c.atividadeId]?.fimOverride ?? ""}
+                                value={
+                                  itemMeta[c.atividadeId]?.fimOverride ?? ""
+                                }
                                 onChange={(e) =>
                                   setItemMeta((prev) => ({
                                     ...prev,
@@ -489,7 +543,10 @@ export default function NovoOrcamentoPage() {
                     })}
                     {cronogramaPreview.length === 0 && (
                       <tr>
-                        <td className="px-3 py-3 text-sm text-gray-600 dark:text-gray-400" colSpan={4}>
+                        <td
+                          className="px-3 py-3 text-sm text-gray-600 dark:text-gray-400"
+                          colSpan={4}
+                        >
                           Selecione projeto e atividades para ver o cronograma.
                         </td>
                       </tr>
@@ -506,7 +563,8 @@ export default function NovoOrcamentoPage() {
                     Entregáveis / Checkpoints
                   </p>
                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                    Organize o orçamento em entregáveis. Sempre haverá pelo menos um entregável padrão.
+                    Organize o orçamento em entregáveis. Sempre haverá pelo
+                    menos um entregável padrão.
                   </p>
                 </div>
               </div>
@@ -517,7 +575,10 @@ export default function NovoOrcamentoPage() {
                     type="checkbox"
                     checked={form.mostrarSubtotaisPorEntregavel}
                     onChange={(e) =>
-                      setForm((p) => ({ ...p, mostrarSubtotaisPorEntregavel: e.target.checked }))
+                      setForm((p) => ({
+                        ...p,
+                        mostrarSubtotaisPorEntregavel: e.target.checked,
+                      }))
                     }
                   />
                   Mostrar subtotais por entregável no PDF
@@ -546,7 +607,11 @@ export default function NovoOrcamentoPage() {
                         value={e.titulo}
                         onChange={(ev) =>
                           setEntregaveis((prev) =>
-                            prev.map((x) => (x.id === e.id ? { ...x, titulo: ev.target.value } : x))
+                            prev.map((x) =>
+                              x.id === e.id
+                                ? { ...x, titulo: ev.target.value }
+                                : x
+                            )
                           )
                         }
                         className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white"
@@ -559,8 +624,18 @@ export default function NovoOrcamentoPage() {
                           className="text-red-600 hover:text-red-800 dark:text-red-400 p-2"
                           title="Remover entregável"
                         >
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          <svg
+                            className="w-5 h-5"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                            />
                           </svg>
                         </button>
                       )}
@@ -581,7 +656,10 @@ export default function NovoOrcamentoPage() {
                       </div>
 
                       {e.checkpoints.map((c) => (
-                        <div key={c.id} className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                        <div
+                          key={c.id}
+                          className="grid grid-cols-1 md:grid-cols-3 gap-2"
+                        >
                           <input
                             value={c.titulo}
                             onChange={(ev) =>
@@ -591,7 +669,9 @@ export default function NovoOrcamentoPage() {
                                   return {
                                     ...x,
                                     checkpoints: x.checkpoints.map((k) =>
-                                      k.id === c.id ? { ...k, titulo: ev.target.value } : k
+                                      k.id === c.id
+                                        ? { ...k, titulo: ev.target.value }
+                                        : k
                                     ),
                                   };
                                 })
@@ -610,7 +690,13 @@ export default function NovoOrcamentoPage() {
                                   return {
                                     ...x,
                                     checkpoints: x.checkpoints.map((k) =>
-                                      k.id === c.id ? { ...k, dataAlvo: ev.target.value || undefined } : k
+                                      k.id === c.id
+                                        ? {
+                                            ...k,
+                                            dataAlvo:
+                                              ev.target.value || undefined,
+                                          }
+                                        : k
                                     ),
                                   };
                                 })
@@ -626,7 +712,9 @@ export default function NovoOrcamentoPage() {
                                   if (x.id !== e.id) return x;
                                   return {
                                     ...x,
-                                    checkpoints: x.checkpoints.filter((k) => k.id !== c.id),
+                                    checkpoints: x.checkpoints.filter(
+                                      (k) => k.id !== c.id
+                                    ),
                                   };
                                 })
                               )
@@ -653,20 +741,29 @@ export default function NovoOrcamentoPage() {
                     ) : (
                       <div className="space-y-2">
                         {form.atividadeIds.map((atividadeId) => {
-                          const a = atividadesDoProjeto.find((x) => x.id === atividadeId);
+                          const a = atividadesDoProjeto.find(
+                            (x) => x.id === atividadeId
+                          );
                           return (
-                            <div key={atividadeId} className="flex items-center justify-between gap-3">
+                            <div
+                              key={atividadeId}
+                              className="flex items-center justify-between gap-3"
+                            >
                               <span className="text-sm text-gray-900 dark:text-white truncate">
                                 {a?.titulo ?? atividadeId}
                               </span>
                               <select
-                                value={itemMeta[atividadeId]?.entregavelId || entregaveis[0].id}
+                                value={
+                                  itemMeta[atividadeId]?.entregavelId ||
+                                  entregaveis[0].id
+                                }
                                 onChange={(ev) =>
                                   setItemMeta((prev) => ({
                                     ...prev,
                                     [atividadeId]: {
                                       ...prev[atividadeId],
-                                      entregavelId: ev.target.value || undefined,
+                                      entregavelId:
+                                        ev.target.value || undefined,
                                     },
                                   }))
                                 }
@@ -713,5 +810,3 @@ export default function NovoOrcamentoPage() {
     </div>
   );
 }
-
-
