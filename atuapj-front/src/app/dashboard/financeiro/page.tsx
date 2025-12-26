@@ -1,17 +1,25 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import Link from "next/link";
 import { useFaturamento } from "@/contexts/FaturamentoContext";
 import { useProjetos } from "@/contexts/ProjetoContext";
 import EmptyState from "@/components/dashboard/EmptyState";
-import { format } from "date-fns";
+import { format, isWithinInterval, parseISO, startOfDay, endOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
 export default function FinanceiroPage() {
-  const { faturas, resumo, loading, updateFatura, deleteFaturas } = useFaturamento();
+  const { faturas, loading, updateFatura, deleteFaturas } = useFaturamento();
   const { projetos } = useProjetos();
   const [selectedFaturas, setSelectedFaturas] = useState<Set<string>>(new Set());
+
+  // Filtros
+  const [filters, setFilters] = useState({
+    startDate: "",
+    endDate: "",
+    empresa: "",
+    projetoId: "",
+  });
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat("pt-BR", {
@@ -30,11 +38,83 @@ export default function FinanceiroPage() {
     return proj ? `${proj.empresa} - ${proj.titulo}` : "Projeto não encontrado";
   };
 
-  // Sort by due date (ascending)
-  const sortedFaturas = [...faturas].sort(
-    (a, b) =>
-      new Date(a.dataVencimento).getTime() - new Date(b.dataVencimento).getTime()
-  );
+  // Listas para os selects de filtros
+  const empresas = useMemo(() => {
+    const unique = new Set(projetos.map((p) => p.empresa));
+    return Array.from(unique).sort();
+  }, [projetos]);
+
+  const projetosFiltrados = useMemo(() => {
+    if (!filters.empresa) return projetos;
+    return projetos.filter((p) => p.empresa === filters.empresa);
+  }, [projetos, filters.empresa]);
+
+  // Lógica de filtragem das faturas
+  const faturasFiltradas = useMemo(() => {
+    return faturas.filter((fatura) => {
+      // Filtro por Empresa/Projeto
+      const projeto = projetos.find((p) => p.id === fatura.projetoId);
+      if (filters.empresa && projeto?.empresa !== filters.empresa) return false;
+      if (filters.projetoId && fatura.projetoId !== filters.projetoId) return false;
+
+      // Filtro por Data
+      if (filters.startDate || filters.endDate) {
+        const dataVenc = parseISO(fatura.dataVencimento);
+        const start = filters.startDate ? startOfDay(parseISO(filters.startDate)) : null;
+        const end = filters.endDate ? endOfDay(parseISO(filters.endDate)) : null;
+
+        if (start && dataVenc < start) return false;
+        if (end && dataVenc > end) return false;
+      }
+
+      return true;
+    });
+  }, [faturas, filters, projetos]);
+
+  // Resumo dinâmico baseado nos filtros
+  const resumoFiltrado = useMemo(() => {
+    const hoje = startOfDay(new Date());
+    const mesAtual = hoje.getMonth();
+    const anoAtual = hoje.getFullYear();
+
+    let recebidoMes = 0;
+    let aReceber = 0;
+    let atrasado = 0;
+
+    faturasFiltradas.forEach((f) => {
+      const dataVenc = parseISO(f.dataVencimento);
+      const dataPag = f.dataPagamento ? parseISO(f.dataPagamento) : null;
+
+      // Recebido no Mês (baseado na data de pagamento)
+      if (
+        f.status === "pago" &&
+        dataPag &&
+        dataPag.getMonth() === mesAtual &&
+        dataPag.getFullYear() === anoAtual
+      ) {
+        recebidoMes += f.valor;
+      }
+
+      // Em Atraso (não pago e vencido)
+      if (f.status !== "pago" && f.status !== "cancelado" && dataVenc < hoje) {
+        atrasado += f.valor;
+      }
+
+      // A Receber (pendente ou atrasado)
+      if (f.status === "pendente" || f.status === "atrasado") {
+        aReceber += f.valor;
+      }
+    });
+
+    return { recebidoMes, aReceber, atrasado };
+  }, [faturasFiltradas]);
+
+  // Ordenação
+  const sortedFaturas = useMemo(() => {
+    return [...faturasFiltradas].sort(
+      (a, b) => new Date(a.dataVencimento).getTime() - new Date(b.dataVencimento).getTime()
+    );
+  }, [faturasFiltradas]);
 
   const isNearDueDate = (dateString: string) => {
     const today = new Date();
@@ -46,9 +126,8 @@ export default function FinanceiroPage() {
 
   const isLate = (fatura: any) => {
     if (fatura.status === "pago" || fatura.status === "cancelado") return false;
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const due = new Date(fatura.dataVencimento);
+    const today = startOfDay(new Date());
+    const due = parseISO(fatura.dataVencimento);
     return due < today;
   };
 
@@ -79,6 +158,15 @@ export default function FinanceiroPage() {
       await deleteFaturas(Array.from(selectedFaturas));
       setSelectedFaturas(new Set());
     }
+  };
+
+  const clearFilters = () => {
+    setFilters({
+      startDate: "",
+      endDate: "",
+      empresa: "",
+      projetoId: "",
+    });
   };
 
   if (loading) {
@@ -131,6 +219,79 @@ export default function FinanceiroPage() {
         </div>
       </div>
 
+      {/* Barra de Filtros */}
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
+          <div>
+            <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 uppercase tracking-wider">
+              Início (Venc.)
+            </label>
+            <input
+              type="date"
+              value={filters.startDate}
+              onChange={(e) => setFilters({ ...filters, startDate: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white text-sm"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 uppercase tracking-wider">
+              Fim (Venc.)
+            </label>
+            <input
+              type="date"
+              value={filters.endDate}
+              onChange={(e) => setFilters({ ...filters, endDate: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white text-sm"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 uppercase tracking-wider">
+              Empresa
+            </label>
+            <select
+              value={filters.empresa}
+              onChange={(e) => setFilters({ ...filters, empresa: e.target.value, projetoId: "" })}
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white text-sm"
+            >
+              <option value="">Todas</option>
+              {empresas.map((emp) => (
+                <option key={emp} value={emp}>
+                  {emp}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 uppercase tracking-wider">
+              Projeto
+            </label>
+            <select
+              value={filters.projetoId}
+              onChange={(e) => setFilters({ ...filters, projetoId: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white text-sm"
+            >
+              <option value="">Todos</option>
+              {projetosFiltrados.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.titulo}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <button
+              onClick={clearFilters}
+              className="w-full px-3 py-2 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors flex items-center justify-center gap-1 border border-gray-200 dark:border-gray-700 rounded-lg"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+              Limpar
+            </button>
+          </div>
+        </div>
+      </div>
+
       {/* Resumo Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
@@ -138,7 +299,7 @@ export default function FinanceiroPage() {
             Recebido este Mês
           </h3>
           <p className="mt-2 text-3xl font-bold text-green-600 dark:text-green-400">
-            {formatCurrency(resumo.recebidoMes)}
+            {formatCurrency(resumoFiltrado.recebidoMes)}
           </p>
         </div>
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
@@ -146,7 +307,7 @@ export default function FinanceiroPage() {
             A Receber
           </h3>
           <p className="mt-2 text-3xl font-bold text-gray-900 dark:text-white">
-            {formatCurrency(resumo.aReceber)}
+            {formatCurrency(resumoFiltrado.aReceber)}
           </p>
         </div>
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
@@ -154,37 +315,27 @@ export default function FinanceiroPage() {
             Em Atraso
           </h3>
           <p className="mt-2 text-3xl font-bold text-red-600 dark:text-red-400">
-            {formatCurrency(resumo.atrasado)}
+            {formatCurrency(resumoFiltrado.atrasado)}
           </p>
         </div>
       </div>
 
       {/* Listagem */}
-      {faturas.length === 0 ? (
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
-          <EmptyState
-            icon={
-              <svg
-                className="w-16 h-16 text-gray-400"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={1.5}
-                  d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                />
-              </svg>
-            }
-            title="Nenhuma fatura encontrada"
-            description="Registre pagamentos e faturas para acompanhar seu fluxo de caixa."
-            action={{
-              label: "Nova Fatura",
-              href: "/dashboard/financeiro/novo",
-            }}
-          />
+      {sortedFaturas.length === 0 ? (
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-12 text-center">
+          <div className="flex justify-center mb-4">
+            <svg className="w-16 h-16 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+          </div>
+          <h3 className="text-lg font-medium text-gray-900 dark:text-white">Nenhum resultado encontrado</h3>
+          <p className="text-gray-500 dark:text-gray-400 mt-1">Tente ajustar os filtros para encontrar o que procura.</p>
+          <button
+            onClick={clearFilters}
+            className="mt-4 text-indigo-600 hover:text-indigo-500 font-medium"
+          >
+            Limpar todos os filtros
+          </button>
         </div>
       ) : (
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
@@ -247,15 +398,12 @@ export default function FinanceiroPage() {
                     nearDue &&
                     !fatura.cobrancaEnviada;
 
-                  // Badges for COMPLETED custom reminders
-                  const completedReminders = (fatura.lembretes || []).filter((l: any) => l.concluido);
-                  
                   // Closest PENDING reminder
                   const nextReminder = (fatura.lembretes || [])
                     .filter((l: any) => !l.concluido)
                     .sort((a: any, b: any) => new Date(a.data).getTime() - new Date(b.data).getTime())[0];
 
-                  const isReminderLate = nextReminder && new Date(nextReminder.data).getTime() < new Date().setHours(0, 0, 0, 0);
+                  const isReminderLate = nextReminder && parseISO(nextReminder.data) < startOfDay(new Date());
 
                   return (
                     <tr
@@ -349,7 +497,7 @@ export default function FinanceiroPage() {
                                     />
                                   </svg>
                                 )}
-                                {format(new Date(nextReminder.data), "dd/MM/yyyy")}
+                                {format(parseISO(nextReminder.data), "dd/MM/yyyy")}
                               </span>
                             </>
                           ) : fatura.status === "pago" ? (
