@@ -1,149 +1,225 @@
 "use client";
 
+import { useMemo } from "react";
 import StatCard from "@/components/dashboard/StatCard";
 import Link from "next/link";
+import { useDashboardMetrics } from "@/hooks/useDashboardMetrics";
+import { useProjetos } from "@/contexts/ProjetoContext";
+import { useAtividades } from "@/contexts/AtividadeContext";
+import { useAtuacoes } from "@/contexts/AtuacaoContext";
+import { formatRelativeTime } from "@/utils/dashboardMetrics";
+
+interface RecentActivity {
+  id: string;
+  type: "project" | "atuacao" | "atividade";
+  message: string;
+  time: string;
+  href?: string;
+  timestamp?: number;
+}
 
 export default function DashboardPage() {
-  // Dados hardcoded para os totalizadores
-  const stats = {
-    projetosAtivos: {
-      title: "Projetos Ativos",
-      value: 5,
-      change: { value: 2, type: "increase" as const, period: "mês passado" },
-      icon: (
-        <svg
-          className="w-8 h-8"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-          />
-        </svg>
-      ),
-      iconBgColor: "bg-green-500",
-      trend: { value: 15, direction: "up" as const },
-    },
-    horasTotais: {
-      title: "Horas Trabalhadas (Mês)",
-      value: "142h",
-      change: { value: 12, type: "increase" as const, period: "mês passado" },
-      icon: (
-        <svg
-          className="w-8 h-8"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-          />
-        </svg>
-      ),
-      iconBgColor: "bg-blue-500",
-      trend: { value: 18, direction: "up" as const },
-    },
-    receitaTotal: {
-      title: "Receita Total (Mês)",
-      value: "R$ 28.400",
-      change: { value: 22, type: "increase" as const, period: "mês passado" },
-      icon: (
-        <svg
-          className="w-8 h-8"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-          />
-        </svg>
-      ),
-      iconBgColor: "bg-yellow-500",
-      trend: { value: 28, direction: "up" as const },
-    },
-    receitaHora: {
-      title: "Média por Hora",
-      value: "R$ 200/h",
-      change: { value: 8, type: "increase" as const, period: "mês passado" },
-      icon: (
-        <svg
-          className="w-8 h-8"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"
-          />
-        </svg>
-      ),
-      iconBgColor: "bg-indigo-500",
-    },
-    projetosNovos: {
-      title: "Projetos Novos (Mês)",
-      value: 2,
-      change: { value: 1, type: "increase" as const, period: "mês passado" },
-      icon: (
-        <svg
-          className="w-8 h-8"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M12 6v6m0 0v6m0-6h6m-6 0H6"
-          />
-        </svg>
-      ),
-      iconBgColor: "bg-purple-500",
-      trend: { value: 50, direction: "up" as const },
-    },
+  const { metrics, loading } = useDashboardMetrics();
+  const { projetos } = useProjetos();
+  const { atividades } = useAtividades();
+  const { atuacoes } = useAtuacoes();
+
+  // Ícones para os cards
+  const icons = {
+    projetosAtivos: (
+      <svg
+        className="w-8 h-8"
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+        />
+      </svg>
+    ),
+    horasTotais: (
+      <svg
+        className="w-8 h-8"
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+        />
+      </svg>
+    ),
+    receitaTotal: (
+      <svg
+        className="w-8 h-8"
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+        />
+      </svg>
+    ),
+    receitaHora: (
+      <svg
+        className="w-8 h-8"
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"
+        />
+      </svg>
+    ),
+    projetosNovos: (
+      <svg
+        className="w-8 h-8"
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+        />
+      </svg>
+    ),
   };
 
-  // Atividades recentes (hardcoded)
-  const recentActivities = [
-    {
-      id: 1,
-      type: "project",
-      message: "Novo projeto 'Sistema ERP' criado",
-      time: "2 horas atrás",
-    },
-    {
-      id: 2,
-      type: "atuacao",
-      message: "Atuação registrada no projeto 'E-commerce'",
-      time: "Ontem",
-    },
-    {
-      id: 3,
-      type: "atuacao",
-      message: "Relatório de atuação enviado - Projeto 'App Mobile'",
-      time: "2 dias atrás",
-    },
-    {
-      id: 4,
-      type: "project",
-      message: "Projeto 'Landing Page' concluído",
-      time: "3 dias atrás",
-    },
-  ];
+  // Calcular atividades recentes
+  const recentActivities = useMemo<RecentActivity[]>(() => {
+    const activities: RecentActivity[] = [];
+
+    // Projetos criados recentemente
+    projetos.forEach((projeto) => {
+      activities.push({
+        id: `proj_${projeto.id}`,
+        type: "project",
+        message: `Novo projeto '${projeto.titulo}' criado`,
+        time: formatRelativeTime(projeto.createdAt),
+        href: `/dashboard/projetos/${projeto.id}`,
+        timestamp: new Date(projeto.createdAt).getTime(),
+      });
+    });
+
+    // Atuações registradas recentemente
+    atuacoes.forEach((atuacao) => {
+      const projeto = projetos.find((p) => p.id === atuacao.projetoId);
+      if (projeto) {
+        activities.push({
+          id: `atu_${atuacao.id}`,
+          type: "atuacao",
+          message: `Atuação registrada no projeto '${projeto.titulo}'`,
+          time: formatRelativeTime(atuacao.createdAt),
+          href: `/dashboard/projetos/${projeto.id}`,
+          timestamp: new Date(atuacao.createdAt).getTime(),
+        });
+      }
+    });
+
+    // Atividades atualizadas recentemente
+    atividades.forEach((atividade) => {
+      const projeto = projetos.find((p) => p.id === atividade.projetoId);
+      if (projeto) {
+        const statusText =
+          atividade.status === "concluida"
+            ? "concluída"
+            : atividade.status === "em_execucao"
+            ? "em execução"
+            : "criada";
+        activities.push({
+          id: `ativ_${atividade.id}`,
+          type: "atividade",
+          message: `Atividade '${atividade.titulo}' ${statusText} - Projeto '${projeto.titulo}'`,
+          time: formatRelativeTime(atividade.updatedAt),
+          href: `/dashboard/projetos/${projeto.id}/atividades/${atividade.id}`,
+          timestamp: new Date(atividade.updatedAt).getTime(),
+        });
+      }
+    });
+
+    // Ordenar por timestamp (mais recente primeiro) e limitar a 10
+    return activities
+      .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0))
+      .slice(0, 10)
+      .map(({ timestamp, ...rest }) => rest);
+  }, [projetos, atuacoes, atividades]);
+
+  // Calcular resumo de projetos por status
+  const projectSummary = useMemo(() => {
+    const projetosComStatus = projetos.map((projeto) => {
+      const projetoAtividades = atividades.filter((a) => a.projetoId === projeto.id);
+      
+      if (projetoAtividades.length === 0) {
+        return { projeto, status: "planejamento" as const };
+      }
+
+      const temEmExecucao = projetoAtividades.some((a) => a.status === "em_execucao");
+      const todasConcluidas = projetoAtividades.every((a) => a.status === "concluida");
+      const todasPendentes = projetoAtividades.every((a) => a.status === "pendente");
+
+      if (temEmExecucao) {
+        return { projeto, status: "em_andamento" as const };
+      }
+      if (todasConcluidas) {
+        return { projeto, status: "concluido" as const };
+      }
+      if (todasPendentes) {
+        return { projeto, status: "planejamento" as const };
+      }
+      return { projeto, status: "em_andamento" as const };
+    });
+
+    const emAndamento = projetosComStatus.filter((p) => p.status === "em_andamento").length;
+    const planejamento = projetosComStatus.filter((p) => p.status === "planejamento").length;
+    const concluidos = projetosComStatus.filter((p) => p.status === "concluido").length;
+    const total = projetos.length;
+
+    return {
+      emAndamento,
+      planejamento,
+      concluidos,
+      total,
+      emAndamentoPercent: total > 0 ? Math.round((emAndamento / total) * 100) : 0,
+      planejamentoPercent: total > 0 ? Math.round((planejamento / total) * 100) : 0,
+      concluidosPercent: total > 0 ? Math.round((concluidos / total) * 100) : 0,
+    };
+  }, [projetos, atividades]);
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+            Meu Dashboard
+          </h1>
+          <p className="mt-2 text-gray-600 dark:text-gray-400">
+            Visão geral da sua atividade como PJ
+          </p>
+        </div>
+        <div className="flex items-center justify-center py-12">
+          <div className="text-gray-500 dark:text-gray-400">Carregando dados...</div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -159,11 +235,41 @@ export default function DashboardPage() {
 
       {/* Cards de estatísticas */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <StatCard {...stats.projetosAtivos} />
-        <StatCard {...stats.horasTotais} />
-        <StatCard {...stats.receitaTotal} />
-        <StatCard {...stats.receitaHora} />
-        <StatCard {...stats.projetosNovos} />
+        <StatCard
+          title="Projetos Ativos"
+          value={metrics.projetosAtivos.value}
+          change={metrics.projetosAtivos.change}
+          icon={icons.projetosAtivos}
+          iconBgColor="bg-green-500"
+        />
+        <StatCard
+          title="Horas Trabalhadas (Mês)"
+          value={metrics.horasTotais.value}
+          change={metrics.horasTotais.change}
+          icon={icons.horasTotais}
+          iconBgColor="bg-blue-500"
+        />
+        <StatCard
+          title="Receita Total (Mês)"
+          value={metrics.receitaTotal.value}
+          change={metrics.receitaTotal.change}
+          icon={icons.receitaTotal}
+          iconBgColor="bg-yellow-500"
+        />
+        <StatCard
+          title="Média por Hora"
+          value={metrics.receitaHora.value}
+          change={metrics.receitaHora.change}
+          icon={icons.receitaHora}
+          iconBgColor="bg-indigo-500"
+        />
+        <StatCard
+          title="Projetos Novos (Mês)"
+          value={metrics.projetosNovos.value}
+          change={metrics.projetosNovos.change}
+          icon={icons.projetosNovos}
+          iconBgColor="bg-purple-500"
+        />
       </div>
 
       {/* Seção de ações rápidas */}
@@ -269,32 +375,41 @@ export default function DashboardPage() {
             <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
               Atividades Recentes
             </h2>
-            <Link
-              href="/dashboard/atividades"
-              className="text-sm text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300"
-            >
-              Ver todas
-            </Link>
           </div>
           <div className="space-y-4">
-            {recentActivities.map((activity) => (
-              <div
-                key={activity.id}
-                className="flex items-start space-x-3 pb-4 border-b border-gray-200 dark:border-gray-700 last:border-0 last:pb-0"
-              >
-                <div className="flex-shrink-0 mt-1">
-                  <div className="h-2 w-2 rounded-full bg-indigo-500"></div>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm text-gray-900 dark:text-white">
-                    {activity.message}
-                  </p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                    {activity.time}
-                  </p>
-                </div>
+            {recentActivities.length === 0 ? (
+              <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                <p>Nenhuma atividade recente</p>
               </div>
-            ))}
+            ) : (
+              recentActivities.map((activity) => (
+                <div
+                  key={activity.id}
+                  className="flex items-start space-x-3 pb-4 border-b border-gray-200 dark:border-gray-700 last:border-0 last:pb-0"
+                >
+                  <div className="flex-shrink-0 mt-1">
+                    <div className="h-2 w-2 rounded-full bg-indigo-500"></div>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    {activity.href ? (
+                      <Link
+                        href={activity.href}
+                        className="text-sm text-gray-900 dark:text-white hover:text-indigo-600 dark:hover:text-indigo-400"
+                      >
+                        {activity.message}
+                      </Link>
+                    ) : (
+                      <p className="text-sm text-gray-900 dark:text-white">
+                        {activity.message}
+                      </p>
+                    )}
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      {activity.time}
+                    </p>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
 
@@ -304,66 +419,73 @@ export default function DashboardPage() {
             Resumo de Projetos
           </h2>
           <div className="space-y-4">
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Em andamento
-                </span>
-                <span className="text-sm font-semibold text-gray-900 dark:text-white">
-                  5 projetos
-                </span>
+            {projectSummary.total === 0 ? (
+              <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                <p>Nenhum projeto cadastrado</p>
               </div>
-              <div className="w-full bg-gray-200 rounded-full h-2 dark:bg-gray-700">
-                <div
-                  className="bg-indigo-600 h-2 rounded-full"
-                  style={{ width: "62%" }}
-                ></div>
-              </div>
-            </div>
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Planejamento
-                </span>
-                <span className="text-sm font-semibold text-gray-900 dark:text-white">
-                  1 projeto
-                </span>
-              </div>
-              <div className="w-full bg-gray-200 rounded-full h-2 dark:bg-gray-700">
-                <div
-                  className="bg-yellow-500 h-2 rounded-full"
-                  style={{ width: "12%" }}
-                ></div>
-              </div>
-            </div>
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Concluídos
-                </span>
-                <span className="text-sm font-semibold text-gray-900 dark:text-white">
-                  3 projetos
-                </span>
-              </div>
-              <div className="w-full bg-gray-200 rounded-full h-2 dark:bg-gray-700">
-                <div
-                  className="bg-green-500 h-2 rounded-full"
-                  style={{ width: "33%" }}
-                ></div>
-              </div>
-            </div>
-            <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
-              <Link
-                href="/dashboard/projetos"
-                className="text-sm font-medium text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300"
-              >
-                Ver meus projetos →
-              </Link>
-            </div>
+            ) : (
+              <>
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Em andamento
+                    </span>
+                    <span className="text-sm font-semibold text-gray-900 dark:text-white">
+                      {projectSummary.emAndamento} {projectSummary.emAndamento === 1 ? "projeto" : "projetos"}
+                    </span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2 dark:bg-gray-700">
+                    <div
+                      className="bg-indigo-600 h-2 rounded-full transition-all"
+                      style={{ width: `${projectSummary.emAndamentoPercent}%` }}
+                    ></div>
+                  </div>
+                </div>
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Planejamento
+                    </span>
+                    <span className="text-sm font-semibold text-gray-900 dark:text-white">
+                      {projectSummary.planejamento} {projectSummary.planejamento === 1 ? "projeto" : "projetos"}
+                    </span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2 dark:bg-gray-700">
+                    <div
+                      className="bg-yellow-500 h-2 rounded-full transition-all"
+                      style={{ width: `${projectSummary.planejamentoPercent}%` }}
+                    ></div>
+                  </div>
+                </div>
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Concluídos
+                    </span>
+                    <span className="text-sm font-semibold text-gray-900 dark:text-white">
+                      {projectSummary.concluidos} {projectSummary.concluidos === 1 ? "projeto" : "projetos"}
+                    </span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2 dark:bg-gray-700">
+                    <div
+                      className="bg-green-500 h-2 rounded-full transition-all"
+                      style={{ width: `${projectSummary.concluidosPercent}%` }}
+                    ></div>
+                  </div>
+                </div>
+                <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
+                  <Link
+                    href="/dashboard/projetos"
+                    className="text-sm font-medium text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300"
+                  >
+                    Ver meus projetos →
+                  </Link>
+                </div>
+              </>
+            )}
           </div>
         </div>
       </div>
     </div>
   );
 }
-
