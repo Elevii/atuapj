@@ -94,6 +94,7 @@ export default function ProjetoDetalhesPage() {
   const totalCusto = atividadesDoProjeto.reduce((sum, atividade) => {
     return sum + atividade.custoTarefa;
   }, 0);
+  const lucroAtualEstimado = totalHorasUtilizadas * projeto.valorHora;
 
   return (
     <div className="space-y-6">
@@ -245,15 +246,30 @@ export default function ProjetoDetalhesPage() {
           </p>
         </div>
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-          <p className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">
-            Custo Estimado
-          </p>
-          <p className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">
-            {formatCurrency(totalCusto)}
-          </p>
-          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-            Baseado em horas totais
-          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <p className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">
+                Lucro atual estimado
+              </p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                {formatCurrency(lucroAtualEstimado)}
+              </p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                {totalHorasUtilizadas}h × {formatCurrency(projeto.valorHora)}/h
+              </p>
+            </div>
+            <div className="sm:border-l sm:border-gray-200 sm:dark:border-gray-700 sm:pl-4">
+              <p className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">
+                Estimativa total
+              </p>
+              <p className="text-3xl font-bold text-indigo-600 dark:text-indigo-400">
+                {formatCurrency(totalCusto)}
+              </p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                Soma dos custos das tarefas
+              </p>
+            </div>
+          </div>
         </div>
       </div>
 
