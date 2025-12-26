@@ -13,6 +13,8 @@ export interface Projeto {
 
 export type StatusAtividade = "pendente" | "iniciada" | "concluida";
 
+export type TipoAtuacao = "reuniao" | "execucao" | "planejamento";
+
 export interface Atividade {
   id: string;
   projetoId: string;
@@ -46,5 +48,31 @@ export interface CreateAtividadeDTO {
    * horasAtuacao * valorHora
    */
   custoTarefa?: number;
+}
+
+export interface Atuacao {
+  id: string;
+  projetoId: string;
+  atividadeId: string;
+  /**
+   * Data da atuação no formato ISO date (YYYY-MM-DD)
+   */
+  data: string;
+  horasUtilizadas: number;
+  tipo: TipoAtuacao;
+  descricao?: string;
+  impactoGerado?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateAtuacaoDTO {
+  projetoId: string;
+  atividadeId: string;
+  data: string;
+  horasUtilizadas: number;
+  tipo: TipoAtuacao;
+  descricao?: string;
+  impactoGerado?: string;
 }
 
