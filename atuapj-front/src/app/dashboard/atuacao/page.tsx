@@ -22,6 +22,7 @@ export default function AtuacaoPage() {
   const { atuacoes, loading, deleteAtuacao } = useAtuacoes();
 
   const [filters, setFilters] = useState({
+    empresa: "",
     projetoId: "",
     dataInicio: "",
     dataFim: "",
@@ -36,18 +37,31 @@ export default function AtuacaoPage() {
   }, [atividades]);
 
   const projetosById = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const p of projetos) map.set(p.id, p.titulo);
+    const map = new Map<string, { titulo: string; empresa: string }>();
+    for (const p of projetos) map.set(p.id, { titulo: p.titulo, empresa: p.empresa });
     return map;
+  }, [projetos]);
+
+  const empresas = useMemo(() => {
+    const set = new Set<string>();
+    for (const p of projetos) {
+      if (p.empresa) set.add(p.empresa);
+    }
+    return Array.from(set).sort((a, b) => a.localeCompare(b, "pt-BR"));
   }, [projetos]);
 
   const filteredAtuacoes = useMemo(() => {
     return atuacoes
+      .filter((a) => {
+        if (!filters.empresa) return true;
+        const projeto = projetosById.get(a.projetoId);
+        return projeto?.empresa === filters.empresa;
+      })
       .filter((a) => (filters.projetoId ? a.projetoId === filters.projetoId : true))
       .filter((a) => (filters.dataInicio ? a.data >= filters.dataInicio : true))
       .filter((a) => (filters.dataFim ? a.data <= filters.dataFim : true))
       .sort((a, b) => (a.data < b.data ? 1 : a.data > b.data ? -1 : 0));
-  }, [atuacoes, filters.dataFim, filters.dataInicio, filters.projetoId]);
+  }, [atuacoes, filters.dataFim, filters.dataInicio, filters.empresa, filters.projetoId, projetosById]);
 
   const formatDate = (iso: string) =>
     iso ? new Date(iso).toLocaleDateString("pt-BR") : "-";
@@ -133,7 +147,26 @@ export default function AtuacaoPage() {
 
       {/* Filtros */}
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 md:p-6">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Empresa
+            </label>
+            <select
+              value={filters.empresa}
+              onChange={(e) =>
+                setFilters((prev) => ({ ...prev, empresa: e.target.value, projetoId: "" }))
+              }
+              className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors dark:bg-gray-700 dark:text-white"
+            >
+              <option value="">Todas</option>
+              {empresas.map((empresa) => (
+                <option key={empresa} value={empresa}>
+                  {empresa}
+                </option>
+              ))}
+            </select>
+          </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               Projeto
@@ -146,11 +179,13 @@ export default function AtuacaoPage() {
               className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors dark:bg-gray-700 dark:text-white"
             >
               <option value="">Todos</option>
-              {projetos.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.titulo}
-                </option>
-              ))}
+              {projetos
+                .filter((p) => (filters.empresa ? p.empresa === filters.empresa : true))
+                .map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.titulo}
+                  </option>
+                ))}
             </select>
           </div>
           <div>
@@ -182,7 +217,9 @@ export default function AtuacaoPage() {
           <div className="flex items-end">
             <button
               type="button"
-              onClick={() => setFilters({ projetoId: "", dataInicio: "", dataFim: "" })}
+              onClick={() =>
+                setFilters({ empresa: "", projetoId: "", dataInicio: "", dataFim: "" })
+              }
               className="w-full px-4 py-3 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-600"
             >
               Limpar filtros
@@ -238,7 +275,9 @@ export default function AtuacaoPage() {
               <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                 {filteredAtuacoes.map((a) => {
                   const tituloAtividade = atividadesById.get(a.atividadeId) ?? "Atividade removida";
-                  const nomeProjeto = projetosById.get(a.projetoId) ?? "Projeto removido";
+                  const projeto = projetosById.get(a.projetoId);
+                  const nomeProjeto = projeto?.titulo ?? "Projeto removido";
+                  const nomeEmpresa = projeto?.empresa ?? "Empresa não informada";
 
                   return (
                     <tr key={a.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
@@ -247,7 +286,7 @@ export default function AtuacaoPage() {
                           {formatDate(a.data)}
                         </div>
                         <div className="text-xs text-gray-500 dark:text-gray-400">
-                          {nomeProjeto}
+                          {nomeEmpresa} • {nomeProjeto}
                         </div>
                       </td>
                       <td className="px-6 py-4">
