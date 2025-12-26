@@ -221,19 +221,70 @@ export default function DashboardPage() {
     );
   }
 
-  return (
-    <div className="space-y-6">
-      {/* Header da página */}
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-          Meu Dashboard
-        </h1>
-        <p className="mt-2 text-gray-600 dark:text-gray-400">
-          Visão geral da sua atividade como PJ
-        </p>
-      </div>
+  const hasNoProjects = projetos.length === 0;
 
-      {/* Cards de estatísticas */}
+  return (
+    <div className="space-y-6 relative">
+      {/* Overlay com blur quando não há projetos */}
+      {hasNoProjects && (
+        <div className="absolute inset-0 z-40 flex items-center justify-center bg-gray-900/20 dark:bg-gray-900/40 backdrop-blur-sm">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 p-8 max-w-md mx-4 text-center z-50">
+            <div className="mb-6">
+              <svg
+                className="w-16 h-16 mx-auto text-indigo-600 dark:text-indigo-400"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                />
+              </svg>
+            </div>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+              Comece criando seu primeiro projeto
+            </h2>
+            <p className="text-gray-600 dark:text-gray-400 mb-6">
+              Crie um projeto para começar a gerenciar suas atividades e acompanhar seu trabalho.
+            </p>
+            <Link
+              href="/dashboard/projetos/novo"
+              className="inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-lg text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
+            >
+              <svg
+                className="w-5 h-5 mr-2"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 4v16m8-8H4"
+                />
+              </svg>
+              Criar Novo Projeto
+            </Link>
+          </div>
+        </div>
+      )}
+
+      <div className={hasNoProjects ? "blur-sm pointer-events-none space-y-6" : "space-y-6"}>
+        {/* Header da página */}
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+            Meu Dashboard
+          </h1>
+          <p className="mt-2 text-gray-600 dark:text-gray-400">
+            Visão geral da sua atividade como PJ
+          </p>
+        </div>
+
+        {/* Cards de estatísticas */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         <StatCard
           title="Projetos Ativos"
@@ -485,6 +536,7 @@ export default function DashboardPage() {
             )}
           </div>
         </div>
+      </div>
       </div>
     </div>
   );
