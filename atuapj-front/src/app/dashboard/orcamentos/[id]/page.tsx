@@ -86,7 +86,7 @@ export default function OrcamentoDetalhePage() {
               </p>
               <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
                 Atividades selecionadas: {orcamento.itens.length} • Campos:{" "}
-                {orcamento.camposSelecionados.length} • Entregáveis:{" "}
+                {orcamento.camposSelecionados.length} • Etapas:{" "}
                 {orcamento.usarEntregaveis ? "Sim" : "Não"}
               </p>
             </div>

@@ -168,16 +168,11 @@ export async function exportOrcamentoToPdf(params: {
   doc.text(`Horas estimadas: ${totalHoras}h`, rightX, rightCursorY);
   rightCursorY += 12;
   doc.text(
-    `Custo calculado: ${formatCurrency(totalCustoCalculado)}`,
+    `Custo: ${formatCurrency(totalCustoCalculado)}`,
     rightX,
     rightCursorY
   );
   rightCursorY += 12;
-  doc.text(
-    `Custo da tarefa (manual): ${formatCurrency(totalCustoTarefa)}`,
-    rightX,
-    rightCursorY
-  );
 
   // Sincroniza cursorY com o maior dos dois
   cursorY = Math.max(cursorY, rightCursorY) + 30;
@@ -328,18 +323,21 @@ export async function exportOrcamentoToPdf(params: {
         }
 
         doc.setFontSize(10);
-        doc.text("Marcos / Checkpoints:", marginX, cursorY);
+        doc.text("Entregas Planejadas:", marginX, cursorY);
         cursorY += 8;
 
         // @ts-expect-error plugin
         autoTable(doc, {
           startY: cursorY,
-          head: [["Título", "Data Alvo"]],
+          head: [["Entrega", "Data Alvo"]],
           body: ent.checkpoints
             .slice()
             // @ts-expect-error type
             .sort((a, b) => (a.ordem ?? 0) - (b.ordem ?? 0))
-            .map((c) => [c.titulo, formatDateBr(c.dataAlvo ?? "")]),
+            .map((c) => [
+              `${ent.titulo} - ${c.titulo}`,
+              formatDateBr(c.dataAlvo ?? ""),
+            ]),
           styles: { fontSize: 9, cellPadding: 4 },
           headStyles: {
             fontSize: 10,
