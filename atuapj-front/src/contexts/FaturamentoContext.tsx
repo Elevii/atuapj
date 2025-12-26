@@ -23,6 +23,7 @@ interface FaturamentoContextType {
   createFatura: (data: CreateFaturaDTO) => Promise<Fatura[]>;
   updateFatura: (id: string, data: UpdateFaturaDTO) => Promise<Fatura>;
   deleteFatura: (id: string) => Promise<void>;
+  deleteFaturas: (ids: string[]) => Promise<void>;
   getFaturaById: (id: string) => Fatura | undefined;
 }
 
@@ -72,6 +73,15 @@ export function FaturamentoProvider({ children }: { children: ReactNode }) {
     await refreshFaturas();
   }, [refreshFaturas]);
 
+  const deleteFaturas = useCallback(async (ids: string[]) => {
+      // Como o service é localstorage, podemos iterar. 
+      // Se fosse API, seria melhor um endpoint de bulk delete.
+      for(const id of ids) {
+          await faturaService.delete(id);
+      }
+      await refreshFaturas();
+  }, [refreshFaturas]);
+
   const getFaturaById = useCallback(
     (id: string) => faturas.find((f) => f.id === id),
     [faturas]
@@ -87,6 +97,7 @@ export function FaturamentoProvider({ children }: { children: ReactNode }) {
         createFatura,
         updateFatura,
         deleteFatura,
+        deleteFaturas,
         getFaturaById,
       }}
     >

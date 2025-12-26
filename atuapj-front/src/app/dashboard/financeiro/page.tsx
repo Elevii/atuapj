@@ -9,8 +9,9 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
 export default function FinanceiroPage() {
-  const { faturas, resumo, loading, updateFatura } = useFaturamento();
+  const { faturas, resumo, loading, updateFatura, deleteFaturas } = useFaturamento();
   const { projetos } = useProjetos();
+  const [selectedFaturas, setSelectedFaturas] = useState<Set<string>>(new Set());
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat("pt-BR", {
@@ -51,6 +52,35 @@ export default function FinanceiroPage() {
     return due < today;
   };
 
+  const toggleSelectAll = () => {
+    if (selectedFaturas.size === sortedFaturas.length) {
+      setSelectedFaturas(new Set());
+    } else {
+      setSelectedFaturas(new Set(sortedFaturas.map((f) => f.id)));
+    }
+  };
+
+  const toggleSelect = (id: string) => {
+    const newSelected = new Set(selectedFaturas);
+    if (newSelected.has(id)) {
+      newSelected.delete(id);
+    } else {
+      newSelected.add(id);
+    }
+    setSelectedFaturas(newSelected);
+  };
+
+  const handleBulkDelete = async () => {
+    if (
+      confirm(
+        `Tem certeza que deseja excluir as ${selectedFaturas.size} faturas selecionadas?`
+      )
+    ) {
+      await deleteFaturas(Array.from(selectedFaturas));
+      setSelectedFaturas(new Set());
+    }
+  };
+
   if (loading) {
     return (
       <div className="p-6">
@@ -70,25 +100,35 @@ export default function FinanceiroPage() {
             Controle de contas a receber
           </p>
         </div>
-        <Link
-          href="/dashboard/financeiro/novo"
-          className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
-        >
-          <svg
-            className="w-5 h-5 mr-2"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
+        <div className="flex space-x-3">
+          {selectedFaturas.size > 0 && (
+            <button
+              onClick={handleBulkDelete}
+              className="inline-flex items-center px-4 py-2 border border-red-300 text-sm font-medium rounded-lg text-red-700 bg-white hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors dark:bg-gray-800 dark:border-red-800 dark:text-red-400 dark:hover:bg-gray-700"
+            >
+              Excluir Selecionadas ({selectedFaturas.size})
+            </button>
+          )}
+          <Link
+            href="/dashboard/financeiro/novo"
+            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
           >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M12 6v6m0 0v6m0-6h6m-6 0H6"
-            />
-          </svg>
-          Nova Fatura
-        </Link>
+            <svg
+              className="w-5 h-5 mr-2"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+              />
+            </svg>
+            Nova Fatura
+          </Link>
+        </div>
       </div>
 
       {/* Resumo Cards */}
@@ -152,6 +192,17 @@ export default function FinanceiroPage() {
             <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
               <thead className="bg-gray-50 dark:bg-gray-900">
                 <tr>
+                  <th scope="col" className="px-6 py-3 w-4">
+                    <input
+                      type="checkbox"
+                      checked={
+                        selectedFaturas.size === sortedFaturas.length &&
+                        sortedFaturas.length > 0
+                      }
+                      onChange={toggleSelectAll}
+                      className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                    />
+                  </th>
                   <th
                     scope="col"
                     className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider"
@@ -197,18 +248,31 @@ export default function FinanceiroPage() {
                     !fatura.cobrancaEnviada;
 
                   const canPay = fatura.notaFiscalEmitida;
-                  const activeReminders = fatura.lembretes?.filter(l => !l.concluido).length || 0;
+                  const activeReminders =
+                    fatura.lembretes?.filter((l) => !l.concluido).length || 0;
 
                   return (
                     <tr
                       key={fatura.id}
                       className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer"
                       onClick={(e) => {
-                         // Evita navegar se clicou em um botão
-                         if ((e.target as HTMLElement).closest('button')) return;
-                         window.location.href = `/dashboard/financeiro/${fatura.id}`;
+                        // Evita navegar se clicou em um botão ou checkbox
+                        if (
+                          (e.target as HTMLElement).closest("button") ||
+                          (e.target as HTMLElement).closest("input[type='checkbox']")
+                        )
+                          return;
+                        window.location.href = `/dashboard/financeiro/${fatura.id}`;
                       }}
                     >
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <input
+                          type="checkbox"
+                          checked={selectedFaturas.has(fatura.id)}
+                          onChange={() => toggleSelect(fatura.id)}
+                          className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                        />
+                      </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span
                           className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
@@ -248,10 +312,12 @@ export default function FinanceiroPage() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                         {activeReminders > 0 ? (
-                           <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-indigo-100 text-indigo-800 dark:bg-indigo-900/50 dark:text-indigo-300">
-                             {activeReminders} pendentes
-                           </span>
-                        ) : "-"}
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-indigo-100 text-indigo-800 dark:bg-indigo-900/50 dark:text-indigo-300">
+                            {activeReminders} pendentes
+                          </span>
+                        ) : (
+                          "-"
+                        )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <div className="flex justify-end space-x-2">
@@ -259,7 +325,9 @@ export default function FinanceiroPage() {
                           {showCobrancaAlert && (
                             <button
                               onClick={() =>
-                                updateFatura(fatura.id, { cobrancaEnviada: true })
+                                updateFatura(fatura.id, {
+                                  cobrancaEnviada: true,
+                                })
                               }
                               title="Marcar cobrança como enviada"
                               className="text-yellow-600 hover:text-yellow-900 dark:text-yellow-400"
@@ -267,7 +335,7 @@ export default function FinanceiroPage() {
                               📧 Cobrança
                             </button>
                           )}
-                          
+
                           {/* Fluxo: 1. Emitir NF */}
                           {fatura.status !== "pago" &&
                             fatura.status !== "cancelado" &&
@@ -300,12 +368,25 @@ export default function FinanceiroPage() {
                                 Registrar Pagamento
                               </button>
                             )}
-                            
-                           <Link href={`/dashboard/financeiro/${fatura.id}`} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
-                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                              </svg>
-                           </Link>
+
+                          <Link
+                            href={`/dashboard/financeiro/${fatura.id}`}
+                            className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+                          >
+                            <svg
+                              className="w-5 h-5"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M9 5l7 7-7 7"
+                              />
+                            </svg>
+                          </Link>
                         </div>
                       </td>
                     </tr>
