@@ -109,7 +109,7 @@ export function useDashboardMetrics(): {
           horasChange !== null && horasAnterior > 0 && horasAtual > 0
             ? {
                 value: Math.abs(horasChange),
-                type: horasChange >= 0 ? "increase" : "decrease",
+                type: (horasChange >= 0 ? "increase" : "decrease") as "increase" | "decrease",
                 period: "mês passado",
               }
             : undefined,
@@ -120,7 +120,7 @@ export function useDashboardMetrics(): {
           receitaChange !== null && receitaAnterior > 0 && receitaAtual > 0
             ? {
                 value: Math.abs(receitaChange),
-                type: receitaChange >= 0 ? "increase" : "decrease",
+                type: (receitaChange >= 0 ? "increase" : "decrease") as "increase" | "decrease",
                 period: "mês passado",
               }
             : undefined,
@@ -131,7 +131,7 @@ export function useDashboardMetrics(): {
           mediaHoraChange !== null && mediaHoraAnterior > 0 && mediaHoraAtual > 0
             ? {
                 value: Math.abs(mediaHoraChange),
-                type: mediaHoraChange >= 0 ? "increase" : "decrease",
+                type: (mediaHoraChange >= 0 ? "increase" : "decrease") as "increase" | "decrease",
                 period: "mês passado",
               }
             : undefined,
@@ -142,7 +142,7 @@ export function useDashboardMetrics(): {
           projetosNovosChange !== null && projetosNovosAnterior > 0 && projetosNovosAtual > 0
             ? {
                 value: Math.abs(projetosNovosChange),
-                type: projetosNovosChange >= 0 ? "increase" : "decrease",
+                type: (projetosNovosChange >= 0 ? "increase" : "decrease") as "increase" | "decrease",
                 period: "mês passado",
               }
             : undefined,

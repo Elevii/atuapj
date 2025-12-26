@@ -73,7 +73,7 @@ export default function EditarAtividadePage() {
     if (custoManual) return;
 
     const horasAtuacao = parseFloat(formData.horasAtuacao || "0");
-    const custo = horasAtuacao * projeto.valorHora;
+    const custo = horasAtuacao * (projeto.valorHora ?? 0);
 
     if (!Number.isFinite(custo)) return;
     setFormData((prev) => ({ ...prev, custoTarefa: custo.toFixed(2) }));
@@ -504,7 +504,7 @@ export default function EditarAtividadePage() {
                 </p>
                 <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                   {formData.horasAtuacao || "0"}h ×{" "}
-                  {formatCurrency(projeto.valorHora)}/h
+                  {formatCurrency(projeto.valorHora ?? 0)}/h
                 </p>
               </div>
             </div>

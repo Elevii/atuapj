@@ -70,7 +70,7 @@ function fieldValue(params: {
     case "custoTarefa":
       return formatCurrency(atividade.custoTarefa);
     case "custoCalculado":
-      return formatCurrency(atividade.horasAtuacao * projeto.valorHora);
+      return formatCurrency(atividade.horasAtuacao * (projeto.valorHora ?? 0));
     case "horasUtilizadas":
       return `${atividade.horasUtilizadas ?? 0}h`;
   }
@@ -90,7 +90,7 @@ function subtotalForEntregavel(params: {
     (sum, id) => sum + (params.atividadesById.get(id)?.horasAtuacao ?? 0),
     0
   );
-  const custoCalculado = horas * params.projeto.valorHora;
+  const custoCalculado = horas * (params.projeto.valorHora ?? 0);
   const custoTarefa = atividadeIds.reduce(
     (sum, id) => sum + (params.atividadesById.get(id)?.custoTarefa ?? 0),
     0
@@ -132,7 +132,7 @@ export async function exportOrcamentoToPdf(params: {
   const totalCustoCalculado = 
     params.projeto.tipoCobranca === "fixo"
       ? (params.projeto.valorFixo ?? 0)
-      : totalHoras * params.projeto.valorHora;
+      : totalHoras * (params.projeto.valorHora ?? 0);
 
   const totalCustoTarefa = atividadesSelecionadas.reduce(
     (sum, a) => sum + (a.custoTarefa ?? 0),
@@ -167,7 +167,7 @@ export async function exportOrcamentoToPdf(params: {
     );
   } else {
     doc.text(
-      `Valor/hora: ${formatCurrency(params.projeto.valorHora)} | Horas úteis/dia: ${params.projeto.horasUteisPorDia}`,
+      `Valor/hora: ${formatCurrency(params.projeto.valorHora ?? 0)} | Horas úteis/dia: ${params.projeto.horasUteisPorDia}`,
       leftX,
       cursorY
     );
@@ -311,7 +311,8 @@ export async function exportOrcamentoToPdf(params: {
           ];
         });
 
-        // @ts-expect-error plugin
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+        // @ts-ignore plugin
         autoTable(doc, {
           startY: cursorY,
           head: [head],
@@ -326,7 +327,8 @@ export async function exportOrcamentoToPdf(params: {
           margin: { left: marginX, right: marginX },
         });
 
-        // @ts-expect-error plugin
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+        // @ts-ignore plugin
         cursorY = doc.lastAutoTable.finalY + 14;
       }
 
@@ -341,13 +343,15 @@ export async function exportOrcamentoToPdf(params: {
         doc.text("Entregas Planejadas:", marginX, cursorY);
         cursorY += 8;
 
-        // @ts-expect-error plugin
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+        // @ts-ignore plugin
         autoTable(doc, {
           startY: cursorY,
           head: [["Entrega", "Data Alvo"]],
           body: ent.checkpoints
             .slice()
-            // @ts-expect-error type
+            // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+            // @ts-ignore type
             .sort((a, b) => (a.ordem ?? 0) - (b.ordem ?? 0))
             .map((c) => [
               `${ent.titulo} - ${c.titulo}`,
@@ -363,7 +367,8 @@ export async function exportOrcamentoToPdf(params: {
           margin: { left: marginX, right: marginX },
         });
 
-        // @ts-expect-error plugin
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+        // @ts-ignore plugin
         cursorY = doc.lastAutoTable.finalY + 20;
       } else {
         cursorY += 10;

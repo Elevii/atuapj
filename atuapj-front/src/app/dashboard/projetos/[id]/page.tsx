@@ -106,7 +106,7 @@ export default function ProjetoDetalhesPage() {
   const lucroAtualEstimado = 
     projeto.tipoCobranca === "fixo"
       ? (projeto.valorFixo ?? 0)
-      : totalHorasUtilizadas * projeto.valorHora;
+      : totalHorasUtilizadas * (projeto.valorHora ?? 0);
 
   // Cálculos financeiros
   const totalFaturado = faturasDoProjeto.reduce((acc, f) => acc + f.valor, 0);
@@ -283,9 +283,9 @@ export default function ProjetoDetalhesPage() {
           </p>
           <p className="text-2xl font-bold text-gray-900 dark:text-white">
             {formatCurrency(
-              projeto.tipoCobranca === "fixo"
-                ? projeto.valorFixo ?? 0
-                : projeto.valorHora
+                  projeto.tipoCobranca === "fixo"
+                    ? projeto.valorFixo ?? 0
+                    : projeto.valorHora ?? 0
             )}
           </p>
         </div>
@@ -312,7 +312,7 @@ export default function ProjetoDetalhesPage() {
               <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                 {projeto.tipoCobranca === "fixo" 
                   ? "Valor fixo fechado"
-                  : `${totalHorasUtilizadas}h × ${formatCurrency(projeto.valorHora)}/h`
+                  : `${totalHorasUtilizadas}h × ${formatCurrency(projeto.valorHora ?? 0)}/h`
                 }
               </p>
             </div>

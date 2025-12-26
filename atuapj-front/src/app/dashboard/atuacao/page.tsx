@@ -390,7 +390,7 @@ export default function AtuacaoPage() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200">
-                          {statusLabel[(a as any).statusAtividadeNoRegistro ?? "pendente"]}
+                          {statusLabel[(a.statusAtividadeNoRegistro ?? "pendente") as StatusAtividade]}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">

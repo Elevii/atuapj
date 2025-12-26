@@ -37,7 +37,7 @@ function toRows(params: {
     projeto: params.projetoTitleById.get(a.projetoId) ?? "",
     atividade: params.atividadeTitleById.get(a.atividadeId) ?? "",
     tipo: tipoLabel[a.tipo],
-    status: statusLabel[(a as any).statusAtividadeNoRegistro ?? "pendente"],
+    status: statusLabel[(a.statusAtividadeNoRegistro ?? "pendente") as StatusAtividade],
     hd: params.hdByAtuacaoId?.get(a.id) ?? 0,
     hu: a.horasUtilizadas,
     descricao: a.descricao ?? "",

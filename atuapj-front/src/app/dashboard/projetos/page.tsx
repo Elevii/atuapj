@@ -131,7 +131,7 @@ export default function ProjetosPage() {
                 {formatCurrency(
                   projeto.tipoCobranca === "fixo"
                     ? projeto.valorFixo ?? 0
-                    : projeto.valorHora
+                    : projeto.valorHora ?? 0
                 )}
               </span>
             </div>

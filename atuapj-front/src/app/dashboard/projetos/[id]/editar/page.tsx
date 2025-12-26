@@ -32,7 +32,7 @@ export default function EditarProjetoPage() {
       setFormData({
         empresa: projeto.empresa,
         titulo: projeto.titulo,
-        valorHora: projeto.valorHora.toFixed(2).replace(".", ","),
+        valorHora: (projeto.valorHora ?? 0).toFixed(2).replace(".", ","),
         horasUteisPorDia: String(projeto.horasUteisPorDia ?? 8),
       });
     }

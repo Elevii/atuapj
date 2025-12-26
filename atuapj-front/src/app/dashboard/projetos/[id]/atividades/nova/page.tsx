@@ -108,7 +108,7 @@ export default function NovaAtividadePage() {
       return;
     }
 
-    const custo = horas * projeto.valorHora;
+    const custo = horas * (projeto.valorHora ?? 0);
     setFormData((prev) => ({ ...prev, custoTarefa: custo.toFixed(2) }));
   }, [custoManual, formData.horasAtuacao, projeto]);
 
@@ -372,7 +372,7 @@ export default function NovaAtividadePage() {
                   {projeto?.tipoCobranca === "fixo"
                     ? "Projeto de valor fixo (custo por hora não se aplica)"
                     : `Padrão: ${formData.horasAtuacao || "0"}h × ${
-                        projeto ? formatCurrency(projeto.valorHora) : "R$ 0,00"
+                        projeto ? formatCurrency(projeto.valorHora ?? 0) : "R$ 0,00"
                       }/h. Você pode ajustar.`}
                 </p>
               </div>
@@ -459,7 +459,7 @@ export default function NovaAtividadePage() {
                   {projeto?.tipoCobranca === "fixo"
                     ? "Projeto de Valor Fixo"
                     : `${formData.horasAtuacao || "0"}h × ${
-                        projeto ? formatCurrency(projeto.valorHora) : "R$ 0,00"
+                        projeto ? formatCurrency(projeto.valorHora ?? 0) : "R$ 0,00"
                       }/h`}
                 </p>
               </div>
