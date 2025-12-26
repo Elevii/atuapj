@@ -161,3 +161,65 @@ export interface CreateOrcamentoDTO {
   entregaveis?: OrcamentoEntregavel[];
 }
 
+export type StatusFatura = "pendente" | "pago" | "atrasado" | "cancelado";
+
+export interface Lembrete {
+  id: string;
+  faturaId: string;
+  titulo: string;
+  data: string; // ISO date
+  concluido: boolean;
+}
+
+export interface Fatura {
+  id: string;
+  projetoId: string;
+  titulo: string;
+  valor: number;
+  dataVencimento: string; // ISO date
+  dataPagamento?: string; // ISO date
+  status: StatusFatura;
+  cobrancaEnviada: boolean;
+  notaFiscalEmitida: boolean;
+  comprovanteEnviado: boolean;
+  lembretes: Lembrete[];
+  observacoes?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type FrequenciaRecorrencia = "semanal" | "quinzenal" | "mensal" | "anual";
+
+export interface RecorrenciaDTO {
+  frequencia: FrequenciaRecorrencia;
+  repeticoes: number; // 2 a 12
+}
+
+export interface CreateLembreteDTO {
+  titulo: string;
+  diasAntesVencimento?: number; // Se definido, calcula data baseada no vencimento
+  dataFixa?: string; // ISO date, se diasAntesVencimento não for usado
+}
+
+export interface CreateFaturaDTO {
+  projetoId: string;
+  titulo: string;
+  valor: number;
+  dataVencimento: string; // ISO date
+  observacoes?: string;
+  recorrencia?: RecorrenciaDTO;
+  lembretesIniciais?: CreateLembreteDTO[];
+}
+
+export interface UpdateFaturaDTO {
+  titulo?: string;
+  valor?: number;
+  dataVencimento?: string;
+  dataPagamento?: string;
+  status?: StatusFatura;
+  cobrancaEnviada?: boolean;
+  notaFiscalEmitida?: boolean;
+  comprovanteEnviado?: boolean;
+  observacoes?: string;
+  lembretes?: Lembrete[];
+}
