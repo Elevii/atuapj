@@ -3,9 +3,11 @@
 import { useState, FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useProjetos } from "@/contexts/ProjetoContext";
 
 export default function NovoProjetoPage() {
   const router = useRouter();
+  const { createProjeto } = useProjetos();
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<{
     empresa?: string;
@@ -88,19 +90,17 @@ export default function NovoProjetoPage() {
       return;
     }
 
-    // Simular criação do projeto
+    // Criar projeto
     setIsLoading(true);
     try {
-      // TODO: Integrar com API
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-      console.log("Projeto criado:", {
-        empresa: formData.empresa,
-        titulo: formData.titulo,
+      const novoProjeto = await createProjeto({
+        empresa: formData.empresa.trim(),
+        titulo: formData.titulo.trim(),
         valorHora: parseCurrency(formData.valorHora),
       });
       
-      // Redirecionar para a listagem de projetos (ou detalhes do projeto criado)
-      router.push("/dashboard/projetos");
+      // Redirecionar para detalhes do projeto criado
+      router.push(`/dashboard/projetos/${novoProjeto.id}`);
     } catch (error) {
       console.error("Erro ao criar projeto:", error);
       setErrors({

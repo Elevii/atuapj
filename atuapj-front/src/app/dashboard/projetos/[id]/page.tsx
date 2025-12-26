@@ -1,48 +1,44 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import { useProjetos } from "@/contexts/ProjetoContext";
+import { useAtividades } from "@/contexts/AtividadeContext";
 
-interface Atividade {
-  id: string;
-  titulo: string;
-  dataInicio: string;
-  horasAtuacao: number;
-  dataFimEstimada: string;
-  lucroEstimado: number;
-}
+import { Atividade } from "@/types";
 
 export default function ProjetoDetalhesPage() {
   const params = useParams();
   const projetoId = params.id as string;
+  const { getProjetoById } = useProjetos();
+  const { atividades, loading, loadAtividadesByProjeto } = useAtividades();
 
-  // Dados mockados - em produção viriam da API
-  const projeto = {
-    id: projetoId,
-    empresa: "Empresa XYZ",
-    titulo: "Sistema de Gestão",
-    valorHora: 150.0,
-  };
+  const projeto = getProjetoById(projetoId);
 
-  const [atividades] = useState<Atividade[]>([
-    {
-      id: "1",
-      titulo: "Desenvolvimento da API",
-      dataInicio: "2024-01-15",
-      horasAtuacao: 40,
-      dataFimEstimada: "2024-01-25",
-      lucroEstimado: 6000,
-    },
-    {
-      id: "2",
-      titulo: "Criação do Frontend",
-      dataInicio: "2024-01-20",
-      horasAtuacao: 30,
-      dataFimEstimada: "2024-01-30",
-      lucroEstimado: 4500,
-    },
-  ]);
+  useEffect(() => {
+    if (projetoId) {
+      loadAtividadesByProjeto(projetoId);
+    }
+  }, [projetoId, loadAtividadesByProjeto]);
+
+  if (!projeto) {
+    return (
+      <div>
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-12 text-center">
+          <p className="text-gray-600 dark:text-gray-400">
+            Projeto não encontrado
+          </p>
+          <Link
+            href="/dashboard/projetos"
+            className="mt-4 inline-block text-indigo-600 hover:text-indigo-700 dark:text-indigo-400"
+          >
+            Voltar para projetos
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString("pt-BR");
@@ -55,26 +51,16 @@ export default function ProjetoDetalhesPage() {
     }).format(value);
   };
 
-  // Agrupar atividades por período (mês/ano)
-  const atividadesPorPeriodo = atividades.reduce((acc, atividade) => {
-    const date = new Date(atividade.dataInicio);
-    const periodo = `${date.toLocaleDateString("pt-BR", {
-      month: "long",
-      year: "numeric",
-    })}`;
-    
-    if (!acc[periodo]) {
-      acc[periodo] = [];
-    }
-    acc[periodo].push(atividade);
-    return acc;
-  }, {} as Record<string, Atividade[]>);
 
-  const totalHoras = atividades.reduce(
+  const atividadesDoProjeto = atividades.filter(
+    (a) => a.projetoId === projetoId
+  );
+
+  const totalHoras = atividadesDoProjeto.reduce(
     (sum, atividade) => sum + atividade.horasAtuacao,
     0
   );
-  const totalLucro = atividades.reduce(
+  const totalLucro = atividadesDoProjeto.reduce(
     (sum, atividade) => sum + atividade.lucroEstimado,
     0
   );
@@ -164,7 +150,11 @@ export default function ProjetoDetalhesPage() {
       </div>
 
       {/* Atividades por Período */}
-      {atividades.length === 0 ? (
+      {loading ? (
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-12 text-center">
+          <p className="text-gray-600 dark:text-gray-400">Carregando atividades...</p>
+        </div>
+      ) : atividadesDoProjeto.length === 0 ? (
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-12">
           <div className="text-center">
             <svg
@@ -197,7 +187,21 @@ export default function ProjetoDetalhesPage() {
           </div>
         </div>
       ) : (
-        Object.entries(atividadesPorPeriodo).map(([periodo, atividadesPeriodo]) => (
+        Object.entries(
+          atividadesDoProjeto.reduce((acc, atividade) => {
+            const date = new Date(atividade.dataInicio);
+            const periodo = `${date.toLocaleDateString("pt-BR", {
+              month: "long",
+              year: "numeric",
+            })}`;
+            
+            if (!acc[periodo]) {
+              acc[periodo] = [];
+            }
+            acc[periodo].push(atividade);
+            return acc;
+          }, {} as Record<string, Atividade[]>)
+        ).map(([periodo, atividadesPeriodo]) => (
           <div key={periodo} className="space-y-4">
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white capitalize">
               {periodo}

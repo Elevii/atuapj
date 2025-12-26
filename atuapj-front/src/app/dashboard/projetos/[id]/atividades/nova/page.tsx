@@ -3,17 +3,35 @@
 import { useState, FormEvent, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
+import { useProjetos } from "@/contexts/ProjetoContext";
+import { useAtividades } from "@/contexts/AtividadeContext";
 
 export default function NovaAtividadePage() {
   const router = useRouter();
   const params = useParams();
   const projetoId = params.id as string;
+  const { getProjetoById } = useProjetos();
+  const { createAtividade } = useAtividades();
 
-  // Em produção, buscar dados do projeto da API
-  const projeto = {
-    id: projetoId,
-    valorHora: 150.0,
-  };
+  const projeto = getProjetoById(projetoId);
+
+  if (!projeto) {
+    return (
+      <div>
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-12 text-center">
+          <p className="text-gray-600 dark:text-gray-400">
+            Projeto não encontrado
+          </p>
+          <Link
+            href="/dashboard/projetos"
+            className="mt-4 inline-block text-indigo-600 hover:text-indigo-700 dark:text-indigo-400"
+          >
+            Voltar para projetos
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<{
@@ -30,7 +48,7 @@ export default function NovaAtividadePage() {
 
   // Calcular data fim estimada e lucro
   const calcularEstimativas = () => {
-    if (!formData.dataInicio || !formData.horasAtuacao) {
+    if (!formData.dataInicio || !formData.horasAtuacao || !projeto) {
       return { dataFim: null, lucro: null };
     }
 
@@ -64,7 +82,7 @@ export default function NovaAtividadePage() {
       }
     }
 
-    const lucro = horas * projeto.valorHora;
+    const lucro = horas * (projeto?.valorHora || 0);
 
     return {
       dataFim: dataFim.toISOString().split("T")[0],
@@ -125,18 +143,18 @@ export default function NovaAtividadePage() {
       return;
     }
 
-    // Simular criação da atividade
+    // Criar atividade
     setIsLoading(true);
     try {
-      // TODO: Integrar com API
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-      console.log("Atividade criada:", {
-        projetoId,
-        titulo: formData.titulo,
-        dataInicio: formData.dataInicio,
-        horasAtuacao: parseFloat(formData.horasAtuacao),
-        ...estimativas,
-      });
+      await createAtividade(
+        {
+          projetoId,
+          titulo: formData.titulo.trim(),
+          dataInicio: formData.dataInicio,
+          horasAtuacao: parseFloat(formData.horasAtuacao),
+        },
+        projetoId
+      );
 
       // Redirecionar para detalhes do projeto
       router.push(`/dashboard/projetos/${projetoId}`);
@@ -365,7 +383,7 @@ export default function NovaAtividadePage() {
                 </p>
                 <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                   {formData.horasAtuacao || "0"}h ×{" "}
-                  {formatCurrency(projeto.valorHora)}/h
+                  {projeto ? formatCurrency(projeto.valorHora) : "R$ 0,00"}/h
                 </p>
               </div>
             </div>
