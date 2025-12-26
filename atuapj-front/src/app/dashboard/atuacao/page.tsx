@@ -7,13 +7,19 @@ import EmptyState from "@/components/dashboard/EmptyState";
 import { useProjetos } from "@/contexts/ProjetoContext";
 import { useAtividades } from "@/contexts/AtividadeContext";
 import { useAtuacoes } from "@/contexts/AtuacaoContext";
-import { TipoAtuacao } from "@/types";
+import { StatusAtividade, TipoAtuacao } from "@/types";
 import { exportAtuacoesToExcel, exportAtuacoesToPdf } from "@/utils/exportAtuacoes";
 
 const tipoLabel: Record<TipoAtuacao, string> = {
   reuniao: "Reunião",
   execucao: "Execução",
   planejamento: "Planejamento",
+};
+
+const statusLabel: Record<StatusAtividade, string> = {
+  pendente: "Pendente",
+  em_execucao: "Em execução",
+  concluida: "Concluída",
 };
 
 export default function AtuacaoPage() {
@@ -29,6 +35,7 @@ export default function AtuacaoPage() {
   });
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [exporting, setExporting] = useState<null | "pdf" | "excel">(null);
+  const [tooltipOpen, setTooltipOpen] = useState<null | "HD" | "HU">(null);
 
   const atividadesById = useMemo(() => {
     const map = new Map<string, string>();
@@ -49,6 +56,27 @@ export default function AtuacaoPage() {
     }
     return Array.from(set).sort((a, b) => a.localeCompare(b, "pt-BR"));
   }, [projetos]);
+
+  // HD por atuação: horas disponíveis para a atividade ANTES do registro
+  const hdByAtuacaoId = useMemo(() => {
+    const sorted = [...atuacoes].sort((a, b) => {
+      const aKey = `${a.data}|${(a as any).horarioInicio ?? ""}|${a.createdAt}`;
+      const bKey = `${b.data}|${(b as any).horarioInicio ?? ""}|${b.createdAt}`;
+      return aKey < bKey ? -1 : aKey > bKey ? 1 : 0;
+    });
+
+    const acumuladoPorAtividade = new Map<string, number>();
+    const result = new Map<string, number>();
+
+    for (const a of sorted) {
+      const acumulado = acumuladoPorAtividade.get(a.atividadeId) ?? 0;
+      const he = (a as any).horasEstimadasNoRegistro ?? 0;
+      result.set(a.id, he - acumulado);
+      acumuladoPorAtividade.set(a.atividadeId, acumulado + (a.horasUtilizadas ?? 0));
+    }
+
+    return result;
+  }, [atuacoes]);
 
   const filteredAtuacoes = useMemo(() => {
     return atuacoes
@@ -106,6 +134,7 @@ export default function AtuacaoPage() {
                 await exportAtuacoesToPdf({
                   atuacoes: filteredAtuacoes,
                   ...exportData,
+                  hdByAtuacaoId,
                   filename: "atuacoes.pdf",
                   titulo: "Relatório de Atuações",
                 });
@@ -126,6 +155,7 @@ export default function AtuacaoPage() {
                 await exportAtuacoesToExcel({
                   atuacoes: filteredAtuacoes,
                   ...exportData,
+                  hdByAtuacaoId,
                   filename: "atuacoes.xlsx",
                 });
               } finally {
@@ -265,6 +295,65 @@ export default function AtuacaoPage() {
                     Tipo
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    Status
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    <div className="relative inline-flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setTooltipOpen((prev) => (prev === "HD" ? null : "HD"))
+                        }
+                        className="font-medium text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 underline decoration-dotted"
+                        title="Clique para ver o que é HD"
+                      >
+                        HD
+                      </button>
+                      {tooltipOpen === "HD" && (
+                        <div className="absolute z-10 top-full left-0 mt-2 w-64 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-3 shadow-lg text-xs text-gray-700 dark:text-gray-200">
+                          HD = Horas Disponíveis para a atividade antes do registro (HE - HU acumulado).
+                          <div className="mt-2">
+                            <button
+                              type="button"
+                              onClick={() => setTooltipOpen(null)}
+                              className="text-indigo-600 dark:text-indigo-400 font-medium"
+                            >
+                              Fechar
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    <div className="relative inline-flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setTooltipOpen((prev) => (prev === "HU" ? null : "HU"))
+                        }
+                        className="font-medium text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 underline decoration-dotted"
+                        title="Clique para ver o que é HU"
+                      >
+                        HU
+                      </button>
+                      {tooltipOpen === "HU" && (
+                        <div className="absolute z-10 top-full left-0 mt-2 w-64 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-3 shadow-lg text-xs text-gray-700 dark:text-gray-200">
+                          HU = Horas Utilizadas registradas nesta atuação.
+                          <div className="mt-2">
+                            <button
+                              type="button"
+                              onClick={() => setTooltipOpen(null)}
+                              className="text-indigo-600 dark:text-indigo-400 font-medium"
+                            >
+                              Fechar
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     Descrição
                   </th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
@@ -298,6 +387,21 @@ export default function AtuacaoPage() {
                         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300">
                           {tipoLabel[a.tipo]}
                         </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200">
+                          {statusLabel[(a as any).statusAtividadeNoRegistro ?? "pendente"]}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-900 dark:text-white">
+                          {(hdByAtuacaoId.get(a.id) ?? 0).toFixed(2)}h
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-900 dark:text-white">
+                          {a.horasUtilizadas}h
+                        </div>
                       </td>
                       <td className="px-6 py-4">
                         <div className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2">

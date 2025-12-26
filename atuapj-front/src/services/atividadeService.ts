@@ -28,6 +28,10 @@ class AtividadeService {
             needsSave = true;
             return { ...raw, custoTarefa: raw.lucroEstimado };
           }
+          if (raw.status === "iniciada") {
+            needsSave = true;
+            return { ...raw, status: "em_execucao" };
+          }
         }
         return raw;
       }) as Atividade[];

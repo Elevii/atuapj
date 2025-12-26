@@ -29,7 +29,7 @@ function calcularStatusAtividade(params: {
   horasEstimadas: number;
 }): StatusAtividade {
   if (params.totalHorasUtilizadas <= 0) return "pendente";
-  if (params.totalHorasUtilizadas < params.horasEstimadas) return "iniciada";
+  if (params.totalHorasUtilizadas < params.horasEstimadas) return "em_execucao";
   return "concluida";
 }
 
@@ -71,14 +71,22 @@ export function AtuacaoProvider({ children }: { children: ReactNode }) {
       if (!atividade) return;
 
       const totalHoras = totalHorasPorAtividade.get(atividadeId) ?? 0;
-      const status = calcularStatusAtividade({
-        totalHorasUtilizadas: totalHoras,
-        horasEstimadas: atividade.horasAtuacao,
-      });
+
+      // Status atual da atividade passa a ser o status do último registro de atuação (se existir).
+      const lastAtuacao = [...atuacoes]
+        .filter((a) => a.atividadeId === atividadeId)
+        .sort((a, b) => (a.createdAt < b.createdAt ? 1 : a.createdAt > b.createdAt ? -1 : 0))[0];
+
+      const status =
+        (lastAtuacao as any)?.statusAtividadeNoRegistro ??
+        calcularStatusAtividade({
+          totalHorasUtilizadas: totalHoras,
+          horasEstimadas: atividade.horasAtuacao,
+        });
 
       await updateAtividade(atividadeId, { horasUtilizadas: totalHoras, status });
     },
-    [atividades, totalHorasPorAtividade, updateAtividade]
+    [atividades, atuacoes, totalHorasPorAtividade, updateAtividade]
   );
 
   const createAtuacao = useCallback(

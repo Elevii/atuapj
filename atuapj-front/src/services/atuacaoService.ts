@@ -10,7 +10,40 @@ class AtuacaoService {
     try {
       const stored = localStorage.getItem(this.storageKey);
       const parsed = stored ? (JSON.parse(stored) as any[]) : [];
-      return Array.isArray(parsed) ? (parsed as Atuacao[]) : [];
+      if (!Array.isArray(parsed)) return [];
+
+      // Migração: status antigo "iniciada" -> "em_execucao" e defaults para campos novos
+      let needsSave = false;
+      const migrated = parsed.map((raw) => {
+        if (raw && typeof raw === "object") {
+          let next = raw;
+          if (raw.statusAtividadeNoRegistro === "iniciada") {
+            needsSave = true;
+            next = { ...next, statusAtividadeNoRegistro: "em_execucao" };
+          }
+          if (next.horasEstimadasNoRegistro === undefined) {
+            needsSave = true;
+            next = { ...next, horasEstimadasNoRegistro: 0 };
+          }
+          if (next.statusAtividadeNoRegistro === undefined) {
+            needsSave = true;
+            next = { ...next, statusAtividadeNoRegistro: "em_execucao" };
+          }
+          if (next.horarioInicio === undefined) {
+            // campo novo opcional
+            needsSave = true;
+            next = { ...next, horarioInicio: undefined };
+          }
+          return next;
+        }
+        return raw;
+      }) as Atuacao[];
+
+      if (needsSave) {
+        this.saveAtuacoesToStorage(migrated);
+      }
+
+      return migrated;
     } catch {
       return [];
     }

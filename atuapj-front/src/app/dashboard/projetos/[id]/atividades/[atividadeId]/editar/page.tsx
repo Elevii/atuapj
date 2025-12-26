@@ -275,7 +275,7 @@ export default function EditarAtividadePage() {
                   className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors dark:bg-gray-700 dark:text-white"
                 >
                   <option value="pendente">Pendente</option>
-                  <option value="iniciada">Iniciada</option>
+                  <option value="em_execucao">Em execução</option>
                   <option value="concluida">Concluída</option>
                 </select>
                 <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
@@ -464,15 +464,15 @@ export default function EditarAtividadePage() {
                   className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                     formData.status === "concluida"
                       ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
-                      : formData.status === "iniciada"
+                      : formData.status === "em_execucao"
                         ? "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400"
                         : "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300"
                   }`}
                 >
                   {formData.status === "concluida"
                     ? "Concluída"
-                    : formData.status === "iniciada"
-                      ? "Iniciada"
+                    : formData.status === "em_execucao"
+                      ? "Em execução"
                       : "Pendente"}
                 </span>
               </div>
