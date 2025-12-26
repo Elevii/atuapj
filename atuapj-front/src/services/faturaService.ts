@@ -78,17 +78,18 @@ class FaturaService {
         }
       }
 
+      // Adiciona lembrete padrão "Receber pagamento" no dia do vencimento
+      const lembretesIniciais: CreateLembreteDTO[] = [
+        ...(data.lembretesIniciais || []),
+        { titulo: "Receber pagamento", diasAntesVencimento: 0 },
+      ];
+
       // Gera lembretes para esta fatura
-      const lembretes: Lembrete[] = (data.lembretesIniciais || []).map(
+      const lembretes: Lembrete[] = lembretesIniciais.map(
         (dto) => {
           let dataLembrete = dataVencimento; // default
 
           if (dto.dataFixa) {
-            // Se for data fixa e recorrência, a lógica pode ficar estranha (mesma data para todas faturas?)
-            // Melhor assumir que dataFixa é para a PRIMEIRA fatura, e incrementamos conforme a recorrência também?
-            // Simplificação: Se tiver recorrência, vamos ignorar dataFixa absoluta e usar diasAntesVencimento se possível.
-            // Se só dataFixa for fornecida, vamos tentar calcular a diferença e aplicar.
-            // Mas para o MVP, vamos confiar em diasAntesVencimento para recorrência.
             dataLembrete = parseISO(dto.dataFixa);
             
             // Se for recorrente, ajustamos a data do lembrete também
@@ -116,7 +117,7 @@ class FaturaService {
           return {
             id: `lemb_${Date.now()}_${Math.random()
               .toString(36)
-              .substr(2, 9)}_${i}`,
+              .substr(2, 9)}_${i}_${Math.random().toString(36).substr(2, 5)}`,
             faturaId: "", // será preenchido após criar ID da fatura
             titulo: dto.titulo,
             data: dataLembrete.toISOString(),
@@ -159,10 +160,6 @@ class FaturaService {
     faturas.push(...novasFaturas);
     this.saveFaturasToStorage(faturas);
 
-    // Retorna a primeira fatura criada (ou array se mudarmos a assinatura)
-    // Para manter compatibilidade com interface simples, vamos mudar a assinatura ou retornar a primeira.
-    // Mas o contexto espera uma única. Vamos ajustar a assinatura no contexto?
-    // O service agora retorna array.
     return novasFaturas;
   }
 

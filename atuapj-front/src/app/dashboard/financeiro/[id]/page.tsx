@@ -100,14 +100,14 @@ export default function FaturaDetalhesPage() {
     });
     setFatura(updated);
   };
-  
+
   const removeAllLembretes = async () => {
-      if(!confirm("Deseja apagar TODOS os lembretes?")) return;
-      const updated = await updateFatura(id, {
-          lembretes: []
-      });
-      setFatura(updated);
-  }
+    if (!confirm("Deseja apagar TODOS os lembretes?")) return;
+    const updated = await updateFatura(id, {
+      lembretes: [],
+    });
+    setFatura(updated);
+  };
 
   const toggleLembrete = async (lembrete: Lembrete) => {
     const currentLembretes = fatura.lembretes || [];
@@ -118,7 +118,41 @@ export default function FaturaDetalhesPage() {
     setFatura(updated);
   };
 
-  const canPay = fatura.notaFiscalEmitida;
+  // Checklist logic
+  const checklistItems = [
+    {
+      id: "cobrancaEnviada",
+      label: "Cobrança enviada",
+      checked: fatura.cobrancaEnviada,
+      action: () => handleUpdateStatus("cobrancaEnviada"),
+      isSystem: true,
+    },
+    {
+      id: "notaFiscalEmitida",
+      label: "Nota Fiscal emitida",
+      checked: fatura.notaFiscalEmitida,
+      action: () => handleUpdateStatus("notaFiscalEmitida"),
+      isSystem: true,
+    },
+    {
+      id: "comprovanteEnviado",
+      label: "Comprovante enviado",
+      checked: fatura.comprovanteEnviado,
+      action: () => handleUpdateStatus("comprovanteEnviado"),
+      isSystem: true,
+    },
+    ...(fatura.lembretes || []).map((l: Lembrete) => ({
+      id: l.id,
+      label: l.titulo,
+      date: l.data,
+      checked: l.concluido,
+      action: () => toggleLembrete(l),
+      isSystem: false,
+      onDelete: () => removeLembrete(l.id),
+    })),
+  ];
+
+  const allChecked = checklistItems.every((item) => item.checked);
 
   return (
     <div className="space-y-6">
@@ -206,80 +240,38 @@ export default function FaturaDetalhesPage() {
             </div>
 
             <div className="mt-8">
-              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
-                Checklist
-              </h3>
-              <div className="space-y-3">
-                <label className="flex items-center space-x-3 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={fatura.cobrancaEnviada}
-                    onChange={() => handleUpdateStatus("cobrancaEnviada")}
-                    className="h-5 w-5 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                  />
-                  <span className="text-gray-700 dark:text-gray-300">
-                    Cobrança enviada
-                  </span>
-                </label>
-                <label className="flex items-center space-x-3 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={fatura.notaFiscalEmitida}
-                    onChange={() => handleUpdateStatus("notaFiscalEmitida")}
-                    className="h-5 w-5 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                  />
-                  <span className="text-gray-700 dark:text-gray-300">
-                    Nota Fiscal emitida
-                  </span>
-                </label>
-                <label className="flex items-center space-x-3 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={fatura.comprovanteEnviado}
-                    onChange={() => handleUpdateStatus("comprovanteEnviado")}
-                    className="h-5 w-5 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                  />
-                  <span className="text-gray-700 dark:text-gray-300">
-                    Comprovante enviado
-                  </span>
-                </label>
+              <div className="mt-6">
+                {fatura.status !== "pago" && fatura.status !== "cancelado" && (
+                  <button
+                    onClick={handleMarkPaid}
+                    className={`w-full py-3 px-4 rounded-lg font-bold text-lg transition-all shadow-md transform hover:scale-[1.02] ${
+                      allChecked
+                        ? "bg-green-600 text-white hover:bg-green-700 ring-4 ring-green-200 dark:ring-green-900"
+                        : "bg-indigo-600 text-white hover:bg-indigo-700"
+                    }`}
+                  >
+                    Registrar Pagamento
+                  </button>
+                )}
               </div>
-              
-               <div className="mt-6">
-                 {fatura.status !== "pago" && fatura.status !== "cancelado" && (
-                    <button
-                        onClick={handleMarkPaid}
-                        disabled={!canPay}
-                        className={`w-full py-2 px-4 rounded-lg font-medium transition-colors ${
-                            canPay 
-                            ? "bg-green-600 text-white hover:bg-green-700" 
-                            : "bg-gray-300 text-gray-500 cursor-not-allowed dark:bg-gray-700 dark:text-gray-400"
-                        }`}
-                        title={!canPay ? "É necessário emitir a NF primeiro" : ""}
-                    >
-                        {canPay ? "Registrar Pagamento" : "Aguardando Emissão de NF"}
-                    </button>
-                 )}
-               </div>
-
             </div>
           </div>
 
           <div className="border-t md:border-t-0 md:border-l border-gray-200 dark:border-gray-700 md:pl-8 pt-8 md:pt-0">
             <div className="flex justify-between items-center mb-4">
-               <h3 className="text-lg font-medium text-gray-900 dark:text-white">
-              Lembretes
-               </h3>
-               {fatura.lembretes && fatura.lembretes.length > 0 && (
-                   <button 
-                    onClick={removeAllLembretes}
-                    className="text-xs text-red-500 hover:text-red-700"
-                   >
-                       Apagar Todos
-                   </button>
-               )}
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white">
+                Checklist & Lembretes
+              </h3>
+              {fatura.lembretes && fatura.lembretes.length > 0 && (
+                <button
+                  onClick={removeAllLembretes}
+                  className="text-xs text-red-500 hover:text-red-700"
+                >
+                  Apagar Lembretes
+                </button>
+              )}
             </div>
-            
+
             <div className="space-y-4">
               <div className="flex space-x-2">
                 <input
@@ -305,62 +297,66 @@ export default function FaturaDetalhesPage() {
               </div>
 
               <div className="space-y-2">
-                {fatura.lembretes?.map((lembrete: Lembrete) => (
+                {checklistItems.map((item: any) => (
                   <div
-                    key={lembrete.id}
-                    className={`flex items-center justify-between p-3 rounded-lg border ${
-                      lembrete.concluido
-                        ? "bg-gray-50 border-gray-200 dark:bg-gray-900/30 dark:border-gray-700"
+                    key={item.id}
+                    className={`flex items-center justify-between p-3 rounded-lg border transition-colors ${
+                      item.checked
+                        ? "bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-900/30"
                         : "bg-white border-gray-200 dark:bg-gray-800 dark:border-gray-700"
                     }`}
                   >
-                    <div className="flex items-center space-x-3">
+                    <label className="flex items-center space-x-3 cursor-pointer flex-1">
                       <input
                         type="checkbox"
-                        checked={lembrete.concluido}
-                        onChange={() => toggleLembrete(lembrete)}
-                        className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                        checked={item.checked}
+                        onChange={item.action}
+                        className="h-5 w-5 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
                       />
-                      <div className={lembrete.concluido ? "opacity-50" : ""}>
+                      <div className={item.checked ? "opacity-60" : ""}>
                         <p
                           className={`text-sm font-medium ${
-                            lembrete.concluido
-                              ? "text-gray-500 line-through"
+                            item.checked
+                              ? "text-gray-600 line-through dark:text-gray-400"
                               : "text-gray-900 dark:text-white"
                           }`}
                         >
-                          {lembrete.titulo}
+                          {item.label}
                         </p>
-                        <p className="text-xs text-gray-500">
-                          {formatDate(lembrete.data)}
-                        </p>
+                        {item.date && (
+                          <p className="text-xs text-gray-500">
+                            {formatDate(item.date)}
+                          </p>
+                        )}
+                        {item.isSystem && (
+                          <span className="text-[10px] uppercase tracking-wider text-gray-400 font-semibold">
+                            Sistema
+                          </span>
+                        )}
                       </div>
-                    </div>
-                    <button
-                      onClick={() => removeLembrete(lembrete.id)}
-                      className="text-gray-400 hover:text-red-500"
-                    >
-                      <svg
-                        className="w-4 h-4"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
+                    </label>
+                    {!item.isSystem && (
+                      <button
+                        onClick={item.onDelete}
+                        className="text-gray-400 hover:text-red-500 ml-2"
                       >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M6 18L18 6M6 6l12 12"
-                        />
-                      </svg>
-                    </button>
+                        <svg
+                          className="w-4 h-4"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M6 18L18 6M6 6l12 12"
+                          />
+                        </svg>
+                      </button>
+                    )}
                   </div>
                 ))}
-                {(!fatura.lembretes || fatura.lembretes.length === 0) && (
-                  <p className="text-sm text-gray-500 text-center py-4">
-                    Nenhum lembrete.
-                  </p>
-                )}
               </div>
             </div>
           </div>
@@ -369,4 +365,3 @@ export default function FaturaDetalhesPage() {
     </div>
   );
 }
-
