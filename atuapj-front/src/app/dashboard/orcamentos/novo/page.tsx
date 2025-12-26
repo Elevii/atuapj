@@ -39,13 +39,9 @@ export default function NovoOrcamentoPage() {
     dataInicioProjeto: formatTodayISODateLocal(),
     camposSelecionados: [
       "titulo",
-      "status",
       "dataInicio",
-      "dataFimEstimada",
       "horasAtuacao",
       "custoTarefa",
-      "custoCalculado",
-      "horasUtilizadas",
     ] as OrcamentoCampoAtividade[],
     atividadeIds: [] as string[],
     usarEntregaveis: false,

@@ -18,6 +18,14 @@ function formatCurrency(value: number) {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
 }
 
+function formatDateBr(iso: string) {
+  if (!iso) return "-";
+  // Espera YYYY-MM-DD
+  const parts = iso.split("-");
+  if (parts.length !== 3) return iso;
+  return `${parts[2]}/${parts[1]}/${parts[0]}`;
+}
+
 function fieldLabel(field: OrcamentoCampoAtividade): string {
   switch (field) {
     case "titulo":
@@ -51,9 +59,9 @@ function fieldValue(params: {
     case "status":
       return statusLabel[atividade.status];
     case "dataInicio":
-      return atividade.dataInicio;
+      return formatDateBr(atividade.dataInicio);
     case "dataFimEstimada":
-      return atividade.dataFimEstimada;
+      return formatDateBr(atividade.dataFimEstimada);
     case "horasAtuacao":
       return `${atividade.horasAtuacao}h`;
     case "custoTarefa":
@@ -64,6 +72,7 @@ function fieldValue(params: {
       return `${atividade.horasUtilizadas ?? 0}h`;
   }
 }
+
 
 function subtotalForEntregavel(params: {
   entregavel: OrcamentoEntregavel;
@@ -90,7 +99,7 @@ export async function exportOrcamentoToPdf(params: {
   filename?: string;
 }) {
   const jsPDFModule = await import("jspdf");
-  await import("jspdf-autotable");
+  const { default: autoTable } = await import("jspdf-autotable");
   const { jsPDF } = jsPDFModule;
 
   const atividadesById = new Map<string, Atividade>();
@@ -136,7 +145,7 @@ export async function exportOrcamentoToPdf(params: {
   cursorY += 18;
 
   // Cronograma
-  const cronograma = gerarCronogramaSequencial({
+  const cronogramaFull = gerarCronogramaSequencial({
     dataInicioProjetoISO: params.orcamento.dataInicioProjeto,
     horasUteisPorDia: params.projeto.horasUteisPorDia,
     itens: itensOrdenados.map((it) => ({
@@ -147,29 +156,77 @@ export async function exportOrcamentoToPdf(params: {
     })),
   });
 
-  doc.setFontSize(12);
-  doc.text("Cronograma", marginX, cursorY);
-  cursorY += 8;
+  // Se usar entregáveis, o cronograma deve ser segmentado por entregável
+  if (params.orcamento.usarEntregaveis && params.orcamento.entregaveis?.length) {
+    // Apenas título da seção geral
+    doc.setFontSize(12);
+    doc.text("Cronograma por Entregável", marginX, cursorY);
+    cursorY += 12;
 
-  // @ts-expect-error plugin
-  doc.autoTable({
-    startY: cursorY,
-    head: [["Atividade", "Início", "Fim"]],
-    body: cronograma.map((c) => [
-      atividadesById.get(c.atividadeId)?.titulo ?? c.atividadeId,
-      c.inicio,
-      c.fim,
-    ]),
-    styles: { fontSize: 9, cellPadding: 4 },
-    headStyles: { fontSize: 10 },
-    theme: "grid",
-    margin: { left: marginX, right: marginX },
-  });
+    const entregaveis = params.orcamento.entregaveis.slice().sort((a, b) => a.ordem - b.ordem);
 
-  // @ts-expect-error plugin
-  cursorY = doc.lastAutoTable.finalY + 18;
+    for (const ent of entregaveis) {
+      if (cursorY > 740) {
+        doc.addPage();
+        cursorY = 40;
+      }
 
-  // Seções por entregável (opcional)
+      // Filtra itens deste entregável
+      const itensEntregavelIds = itensOrdenados
+        .filter((i) => i.entregavelId === ent.id)
+        .map((i) => i.atividadeId);
+      const cronogramaEnt = cronogramaFull.filter((c) => itensEntregavelIds.includes(c.atividadeId));
+
+      if (cronogramaEnt.length > 0) {
+        doc.setFontSize(10);
+        doc.text(`Cronograma: ${ent.titulo}`, marginX, cursorY);
+        cursorY += 6;
+
+        // @ts-expect-error plugin
+        autoTable(doc, {
+          startY: cursorY,
+          head: [["Atividade", "Início", "Fim"]],
+          body: cronogramaEnt.map((c) => [
+            atividadesById.get(c.atividadeId)?.titulo ?? c.atividadeId,
+            formatDateBr(c.inicio),
+            formatDateBr(c.fim),
+          ]),
+          styles: { fontSize: 9, cellPadding: 4 },
+          headStyles: { fontSize: 10 },
+          theme: "grid",
+          margin: { left: marginX, right: marginX },
+        });
+
+        // @ts-expect-error plugin
+        cursorY = doc.lastAutoTable.finalY + 14;
+      }
+    }
+  } else {
+    // Modo simples: cronograma unificado
+    doc.setFontSize(12);
+    doc.text("Cronograma", marginX, cursorY);
+    cursorY += 8;
+
+    // @ts-expect-error plugin
+    autoTable(doc, {
+      startY: cursorY,
+      head: [["Atividade", "Início", "Fim"]],
+      body: cronogramaFull.map((c) => [
+        atividadesById.get(c.atividadeId)?.titulo ?? c.atividadeId,
+        formatDateBr(c.inicio),
+        formatDateBr(c.fim),
+      ]),
+      styles: { fontSize: 9, cellPadding: 4 },
+      headStyles: { fontSize: 10 },
+      theme: "grid",
+      margin: { left: marginX, right: marginX },
+    });
+
+    // @ts-expect-error plugin
+    cursorY = doc.lastAutoTable.finalY + 18;
+  }
+
+  // Seções por entregável (Detalhes)
   if (params.orcamento.usarEntregaveis && params.orcamento.entregaveis?.length) {
     const entregaveis = params.orcamento.entregaveis.slice().sort((a, b) => a.ordem - b.ordem);
     for (const ent of entregaveis) {
@@ -179,10 +236,12 @@ export async function exportOrcamentoToPdf(params: {
       }
 
       doc.setFontSize(12);
-      doc.text(`Entregável: ${ent.titulo}`, marginX, cursorY);
+      doc.text(`Detalhes: ${ent.titulo}`, marginX, cursorY);
       cursorY += 12;
+      // @ts-expect-error type
       if (ent.descricao) {
         doc.setFontSize(10);
+        // @ts-expect-error type
         doc.text(ent.descricao, marginX, cursorY);
         cursorY += 14;
       }
@@ -193,13 +252,14 @@ export async function exportOrcamentoToPdf(params: {
         cursorY += 6;
 
         // @ts-expect-error plugin
-        doc.autoTable({
+        autoTable(doc, {
           startY: cursorY,
           head: [["Título", "Data alvo"]],
           body: ent.checkpoints
             .slice()
-            .sort((a, b) => a.ordem - b.ordem)
-            .map((c) => [c.titulo, c.dataAlvo ?? ""]),
+            // @ts-expect-error type
+            .sort((a, b) => (a.ordem ?? 0) - (b.ordem ?? 0))
+            .map((c) => [c.titulo, formatDateBr(c.dataAlvo ?? "")]),
           styles: { fontSize: 9, cellPadding: 4 },
           headStyles: { fontSize: 10 },
           theme: "grid",
@@ -247,7 +307,7 @@ export async function exportOrcamentoToPdf(params: {
   });
 
   // @ts-expect-error plugin
-  doc.autoTable({
+  autoTable(doc, {
     startY: cursorY,
     head: [head],
     body,
