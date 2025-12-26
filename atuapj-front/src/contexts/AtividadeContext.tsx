@@ -4,6 +4,8 @@ import {
   createContext,
   useContext,
   useState,
+  useCallback,
+  useEffect,
   ReactNode,
 } from "react";
 import { Atividade, CreateAtividadeDTO } from "@/types";
@@ -30,20 +32,31 @@ const AtividadeContext = createContext<AtividadeContextType | undefined>(
 
 export function AtividadeProvider({ children }: { children: ReactNode }) {
   const [atividades, setAtividades] = useState<Atividade[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const { getProjetoById } = useProjetos();
 
-  const loadAtividadesByProjeto = async (projetoId: string) => {
-    try {
-      setLoading(true);
-      const data = await atividadeService.findByProjetoId(projetoId);
-      setAtividades(data);
-    } catch (error) {
-      console.error("Erro ao carregar atividades:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Carrega todas as atividades do storage uma vez ao montar
+  useEffect(() => {
+    const loadAllAtividades = async () => {
+      try {
+        setLoading(true);
+        const allAtividades = await atividadeService.findAll();
+        setAtividades(allAtividades);
+      } catch (error) {
+        console.error("Erro ao carregar todas as atividades:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadAllAtividades();
+  }, []);
+
+  // Função vazia para manter compatibilidade (não precisa carregar por projeto se já tem tudo)
+  const loadAtividadesByProjeto = useCallback(async (projetoId: string) => {
+    // Não precisa fazer nada, já carregou todas as atividades
+    // Esta função existe apenas para manter a interface compatível
+  }, []);
 
   const createAtividade = async (
     data: CreateAtividadeDTO,
@@ -55,7 +68,9 @@ export function AtividadeProvider({ children }: { children: ReactNode }) {
     }
 
     const novaAtividade = await atividadeService.create(data, projeto.valorHora);
-    setAtividades((prev) => [...prev, novaAtividade]);
+    // Recarrega todas as atividades para garantir sincronização
+    const allAtividades = await atividadeService.findAll();
+    setAtividades(allAtividades);
     return novaAtividade;
   };
 
@@ -74,15 +89,17 @@ export function AtividadeProvider({ children }: { children: ReactNode }) {
       data,
       projeto?.valorHora
     );
-    setAtividades((prev) =>
-      prev.map((a) => (a.id === id ? atividadeAtualizada : a))
-    );
+    // Recarrega todas as atividades para garantir sincronização
+    const allAtividades = await atividadeService.findAll();
+    setAtividades(allAtividades);
     return atividadeAtualizada;
   };
 
   const deleteAtividade = async (id: string): Promise<void> => {
     await atividadeService.delete(id);
-    setAtividades((prev) => prev.filter((a) => a.id !== id));
+    // Recarrega todas as atividades para garantir sincronização
+    const allAtividades = await atividadeService.findAll();
+    setAtividades(allAtividades);
   };
 
   const getAtividadeById = (id: string): Atividade | undefined => {

@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useProjetos } from "@/contexts/ProjetoContext";
@@ -12,15 +11,9 @@ export default function ProjetoDetalhesPage() {
   const params = useParams();
   const projetoId = params.id as string;
   const { getProjetoById } = useProjetos();
-  const { atividades, loading, loadAtividadesByProjeto } = useAtividades();
+  const { atividades, loading } = useAtividades();
 
   const projeto = getProjetoById(projetoId);
-
-  useEffect(() => {
-    if (projetoId) {
-      loadAtividadesByProjeto(projetoId);
-    }
-  }, [projetoId, loadAtividadesByProjeto]);
 
   if (!projeto) {
     return (

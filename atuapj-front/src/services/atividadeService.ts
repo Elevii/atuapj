@@ -51,6 +51,11 @@ class AtividadeService {
     return dataFim.toISOString().split("T")[0];
   }
 
+  async findAll(): Promise<Atividade[]> {
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    return this.getAtividadesFromStorage();
+  }
+
   async findByProjetoId(projetoId: string): Promise<Atividade[]> {
     await new Promise((resolve) => setTimeout(resolve, 200));
     const atividades = this.getAtividadesFromStorage();
