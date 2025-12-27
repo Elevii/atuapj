@@ -86,7 +86,7 @@ export async function exportAtuacoesToPdf(params: {
   titulo?: string;
 }) {
   const jsPDFModule = await import("jspdf");
-  await import("jspdf-autotable");
+  const { default: autoTable } = await import("jspdf-autotable");
   const { jsPDF } = jsPDFModule;
 
   const doc = new jsPDF({ orientation: "landscape", unit: "pt", format: "a4" });
@@ -95,8 +95,9 @@ export async function exportAtuacoesToPdf(params: {
   doc.setFontSize(14);
   doc.text(params.titulo ?? "Relatório de Atuações", 40, 40);
 
-  // @ts-expect-error: autotable é adicionado ao protótipo do jsPDF pelo plugin
-  doc.autoTable({
+  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+  // @ts-ignore: autotable é adicionado ao protótipo do jsPDF pelo plugin
+  autoTable(doc, {
     startY: 60,
     head: [["Data", "Início", "Projeto", "Atividade", "Tipo", "Status", "HD", "HU", "Descrição", "Impacto"]],
     body: rows.map((r) => [
