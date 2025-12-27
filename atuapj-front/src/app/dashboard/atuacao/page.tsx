@@ -9,6 +9,7 @@ import { useAtividades } from "@/contexts/AtividadeContext";
 import { useAtuacoes } from "@/contexts/AtuacaoContext";
 import { StatusAtividade, TipoAtuacao } from "@/types";
 import { exportAtuacoesToExcel, exportAtuacoesToPdf, type AtuacaoColumn, COLUMN_LABELS } from "@/utils/exportAtuacoes";
+import { parseISODateToLocal, formatDateBR } from "@/utils/estimativas";
 
 const tipoLabel: Record<TipoAtuacao, string> = {
   reuniao: "Reunião",
@@ -103,8 +104,46 @@ export default function AtuacaoPage() {
       .sort((a, b) => (a.data < b.data ? 1 : a.data > b.data ? -1 : 0));
   }, [atuacoes, filters.dataFim, filters.dataInicio, filters.empresa, filters.projetoId, projetosById]);
 
-  const formatDate = (iso: string) =>
-    iso ? new Date(iso).toLocaleDateString("pt-BR") : "-";
+  // Agrupar atuações por mês/ano
+  const atuacoesPorMesAno = useMemo(() => {
+    const grupos = new Map<string, typeof filteredAtuacoes>();
+    
+    filteredAtuacoes.forEach((atuacao) => {
+      const data = parseISODateToLocal(atuacao.data);
+      if (!data) return;
+      
+      const mes = data.getMonth();
+      const ano = data.getFullYear();
+      const chave = `${ano}-${String(mes + 1).padStart(2, "0")}`;
+      
+      if (!grupos.has(chave)) {
+        grupos.set(chave, []);
+      }
+      grupos.get(chave)!.push(atuacao);
+    });
+
+    // Converter para array e ordenar por data (mais recente primeiro)
+    return Array.from(grupos.entries())
+      .sort(([chaveA], [chaveB]) => {
+        // Comparar ano e mês
+        const [anoA, mesA] = chaveA.split("-").map(Number);
+        const [anoB, mesB] = chaveB.split("-").map(Number);
+        if (anoA !== anoB) return anoB - anoA; // Ano mais recente primeiro
+        return mesB - mesA; // Mês mais recente primeiro
+      })
+      .map(([chave, atuacoes]) => {
+        const [ano, mes] = chave.split("-").map(Number);
+        const data = new Date(ano, mes - 1, 1);
+        const nomeMes = data.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+        return {
+          chave,
+          mesAno: nomeMes.charAt(0).toUpperCase() + nomeMes.slice(1),
+          atuacoes,
+        };
+      });
+  }, [filteredAtuacoes]);
+
+  const formatDate = (iso: string) => formatDateBR(iso);
 
   const handleDelete = async (id: string) => {
     setDeletingId(id);
@@ -267,150 +306,168 @@ export default function AtuacaoPage() {
           />
         </div>
       ) : (
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-              <thead className="bg-gray-50 dark:bg-gray-900">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Data
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Título
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Tipo
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    <div className="relative inline-flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setTooltipOpen((prev) => (prev === "HD" ? null : "HD"))
-                        }
-                        className="font-medium text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 underline decoration-dotted"
-                        title="Clique para ver o que é HD"
-                      >
-                        HD
-                      </button>
-                      {tooltipOpen === "HD" && (
-                        <div className="absolute z-10 top-full left-0 mt-2 w-64 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-3 shadow-lg text-xs text-gray-700 dark:text-gray-200">
-                          HD = Horas Disponíveis para a atividade antes do registro (HE - HU acumulado).
-                          <div className="mt-2">
-                            <button
-                              type="button"
-                              onClick={() => setTooltipOpen(null)}
-                              className="text-indigo-600 dark:text-indigo-400 font-medium"
-                            >
-                              Fechar
-                            </button>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    <div className="relative inline-flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setTooltipOpen((prev) => (prev === "HU" ? null : "HU"))
-                        }
-                        className="font-medium text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 underline decoration-dotted"
-                        title="Clique para ver o que é HU"
-                      >
-                        HU
-                      </button>
-                      {tooltipOpen === "HU" && (
-                        <div className="absolute z-10 top-full left-0 mt-2 w-64 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-3 shadow-lg text-xs text-gray-700 dark:text-gray-200">
-                          HU = Horas Utilizadas registradas nesta atuação.
-                          <div className="mt-2">
-                            <button
-                              type="button"
-                              onClick={() => setTooltipOpen(null)}
-                              className="text-indigo-600 dark:text-indigo-400 font-medium"
-                            >
-                              Fechar
-                            </button>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Descrição
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Ações
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                {filteredAtuacoes.map((a) => {
-                  const tituloAtividade = atividadesById.get(a.atividadeId) ?? "Atividade removida";
-                  const projeto = projetosById.get(a.projetoId);
-                  const nomeProjeto = projeto?.titulo ?? "Projeto removido";
-                  const nomeEmpresa = projeto?.empresa ?? "Empresa não informada";
+        <div className="space-y-8">
+          {atuacoesPorMesAno.map((grupo) => (
+            <div
+              key={grupo.chave}
+              className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden"
+            >
+              {/* Cabeçalho do mês/ano */}
+              <div className="bg-gray-50 dark:bg-gray-900 px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+                  {grupo.mesAno}
+                </h2>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                  {grupo.atuacoes.length} {grupo.atuacoes.length === 1 ? "atuação" : "atuações"}
+                </p>
+              </div>
 
-                  return (
-                    <tr key={a.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900 dark:text-white">
-                          {formatDate(a.data)}
+              {/* Tabela de atuações do mês */}
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                  <thead className="bg-gray-50 dark:bg-gray-900">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        Data
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        Título
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        Tipo
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        Status
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        <div className="relative inline-flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setTooltipOpen((prev) => (prev === "HD" ? null : "HD"))
+                            }
+                            className="font-medium text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 underline decoration-dotted"
+                            title="Clique para ver o que é HD"
+                          >
+                            HD
+                          </button>
+                          {tooltipOpen === "HD" && (
+                            <div className="absolute z-10 top-full left-0 mt-2 w-64 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-3 shadow-lg text-xs text-gray-700 dark:text-gray-200">
+                              HD = Horas Disponíveis para a atividade antes do registro (HE - HU acumulado).
+                              <div className="mt-2">
+                                <button
+                                  type="button"
+                                  onClick={() => setTooltipOpen(null)}
+                                  className="text-indigo-600 dark:text-indigo-400 font-medium"
+                                >
+                                  Fechar
+                                </button>
+                              </div>
+                            </div>
+                          )}
                         </div>
-                        <div className="text-xs text-gray-500 dark:text-gray-400">
-                          {nomeEmpresa} • {nomeProjeto}
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        <div className="relative inline-flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setTooltipOpen((prev) => (prev === "HU" ? null : "HU"))
+                            }
+                            className="font-medium text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 underline decoration-dotted"
+                            title="Clique para ver o que é HU"
+                          >
+                            HU
+                          </button>
+                          {tooltipOpen === "HU" && (
+                            <div className="absolute z-10 top-full left-0 mt-2 w-64 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-3 shadow-lg text-xs text-gray-700 dark:text-gray-200">
+                              HU = Horas Utilizadas registradas nesta atuação.
+                              <div className="mt-2">
+                                <button
+                                  type="button"
+                                  onClick={() => setTooltipOpen(null)}
+                                  className="text-indigo-600 dark:text-indigo-400 font-medium"
+                                >
+                                  Fechar
+                                </button>
+                              </div>
+                            </div>
+                          )}
                         </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="text-sm font-medium text-gray-900 dark:text-white">
-                          {tituloAtividade}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300">
-                          {tipoLabel[a.tipo]}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200">
-                          {statusLabel[(a.statusAtividadeNoRegistro ?? "pendente") as StatusAtividade]}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900 dark:text-white">
-                          {(hdByAtuacaoId.get(a.id) ?? 0).toFixed(2)}h
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900 dark:text-white">
-                          {a.horasUtilizadas}h
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2">
-                          {a.descricao || "-"}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <button
-                          onClick={() => handleDelete(a.id)}
-                          disabled={deletingId === a.id}
-                          className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 disabled:opacity-50"
-                          title="Excluir atuação"
-                        >
-                          {deletingId === a.id ? "Excluindo..." : "Excluir"}
-                        </button>
-                      </td>
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        Descrição
+                      </th>
+                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        Ações
+                      </th>
                     </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                  </thead>
+                  <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                    {grupo.atuacoes.map((a) => {
+                      const tituloAtividade = atividadesById.get(a.atividadeId) ?? "Atividade removida";
+                      const projeto = projetosById.get(a.projetoId);
+                      const nomeProjeto = projeto?.titulo ?? "Projeto removido";
+                      const nomeEmpresa = projeto?.empresa ?? "Empresa não informada";
+
+                      return (
+                        <tr key={a.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm text-gray-900 dark:text-white">
+                              {formatDate(a.data)}
+                            </div>
+                            <div className="text-xs text-gray-500 dark:text-gray-400">
+                              {nomeEmpresa} • {nomeProjeto}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="text-sm font-medium text-gray-900 dark:text-white">
+                              {tituloAtividade}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300">
+                              {tipoLabel[a.tipo]}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200">
+                              {statusLabel[(a.statusAtividadeNoRegistro ?? "pendente") as StatusAtividade]}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm text-gray-900 dark:text-white">
+                              {(hdByAtuacaoId.get(a.id) ?? 0).toFixed(2)}h
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm text-gray-900 dark:text-white">
+                              {a.horasUtilizadas}h
+                            </div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2">
+                              {a.descricao || "-"}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                            <button
+                              onClick={() => handleDelete(a.id)}
+                              disabled={deletingId === a.id}
+                              className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 disabled:opacity-50"
+                              title="Excluir atuação"
+                            >
+                              {deletingId === a.id ? "Excluindo..." : "Excluir"}
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ))}
         </div>
       )}
 

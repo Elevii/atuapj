@@ -109,6 +109,26 @@ function formatDateToISODateLocal(date: Date): string {
   return `${y}-${m}-${d}`;
 }
 
+/**
+ * Formata uma data ISO (YYYY-MM-DD) ou timestamp ISO para o formato brasileiro (DD/MM/YYYY)
+ * Considera o fuso horário brasileiro corretamente
+ */
+export function formatDateBR(dateISO: string | null | undefined): string {
+  if (!dateISO) return "-";
+  
+  // Se for apenas data (YYYY-MM-DD), usa parseISODateToLocal
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateISO)) {
+    const data = parseISODateToLocal(dateISO);
+    if (!data) return "-";
+    return data.toLocaleDateString("pt-BR");
+  }
+  
+  // Se for timestamp ISO completo, usa new Date mas formata considerando o fuso local
+  const data = new Date(dateISO);
+  if (Number.isNaN(data.getTime())) return "-";
+  return data.toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" });
+}
+
 function addDays(date: Date, days: number): Date {
   const d = new Date(date);
   d.setDate(d.getDate() + days);

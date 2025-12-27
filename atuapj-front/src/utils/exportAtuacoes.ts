@@ -1,4 +1,5 @@
 import type { Atuacao, StatusAtividade, TipoAtuacao } from "@/types";
+import { parseISODateToLocal, formatDateBR } from "./estimativas";
 
 export type AtuacaoColumn = 
   | "data"
@@ -274,7 +275,7 @@ export async function exportAtuacoesToPdf(params: {
 
       const projetoNome = params.projetoTitleById.get(atuacao.projetoId) || "Projeto não encontrado";
       const atividadeNome = params.atividadeTitleById.get(atuacao.atividadeId) || "Atividade não encontrada";
-      const dataFormatada = new Date(atuacao.data + "T00:00:00").toLocaleDateString("pt-BR");
+      const dataFormatada = formatDateBR(atuacao.data);
       const horarioInicio = (atuacao as any).horarioInicio || "";
       const tipoTexto = tipoLabel[atuacao.tipo];
       const statusTexto = statusLabel[(atuacao.statusAtividadeNoRegistro ?? "pendente") as StatusAtividade];
