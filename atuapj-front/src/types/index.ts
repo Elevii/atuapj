@@ -80,6 +80,10 @@ export interface Atuacao {
   statusAtividadeNoRegistro: StatusAtividade;
   descricao?: string;
   impactoGerado?: string;
+  /**
+   * URL da evidência da atuação (link para comprovação)
+   */
+  evidenciaUrl?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -95,6 +99,7 @@ export interface CreateAtuacaoDTO {
   statusAtividadeNoRegistro: StatusAtividade;
   descricao?: string;
   impactoGerado?: string;
+  evidenciaUrl?: string;
 }
 
 export type OrcamentoCampoAtividade =

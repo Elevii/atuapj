@@ -48,6 +48,7 @@ export default function NovaAtuacaoPage() {
     statusAtividadeNoRegistro: "em_execucao" as StatusAtividade,
     descricao: "",
     impactoGerado: "",
+    evidenciaUrl: "",
   });
   const [statusManual, setStatusManual] = useState(false);
 
@@ -159,6 +160,7 @@ export default function NovaAtuacaoPage() {
         statusAtividadeNoRegistro: formData.statusAtividadeNoRegistro,
         descricao: formData.descricao.trim() || undefined,
         impactoGerado: formData.impactoGerado.trim() || undefined,
+        evidenciaUrl: formData.evidenciaUrl.trim() || undefined,
       });
 
       router.push("/dashboard/atuacao");
@@ -513,6 +515,27 @@ export default function NovaAtuacaoPage() {
                               className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors dark:bg-gray-700 dark:text-white dark:placeholder-gray-400"
                               placeholder="Ex.: Redução de tempo, melhoria de performance, alinhamento com stakeholder..."
                             />
+                          </div>
+
+                          <div>
+                            <label
+                              htmlFor="evidenciaUrl"
+                              className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+                            >
+                              Link da evidência
+                            </label>
+                            <input
+                              id="evidenciaUrl"
+                              name="evidenciaUrl"
+                              type="url"
+                              value={formData.evidenciaUrl}
+                              onChange={handleChange}
+                              className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors dark:bg-gray-700 dark:text-white dark:placeholder-gray-400"
+                              placeholder="https://exemplo.com/evidencia"
+                            />
+                            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                              URL da evidência que comprova a atuação realizada
+                            </p>
                           </div>
                         </div>
                       </details>

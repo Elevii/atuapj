@@ -8,7 +8,7 @@ import { useProjetos } from "@/contexts/ProjetoContext";
 import { useAtividades } from "@/contexts/AtividadeContext";
 import { useAtuacoes } from "@/contexts/AtuacaoContext";
 import { StatusAtividade, TipoAtuacao } from "@/types";
-import { exportAtuacoesToExcel, exportAtuacoesToPdf } from "@/utils/exportAtuacoes";
+import { exportAtuacoesToExcel, exportAtuacoesToPdf, type AtuacaoColumn, COLUMN_LABELS } from "@/utils/exportAtuacoes";
 
 const tipoLabel: Record<TipoAtuacao, string> = {
   reuniao: "Reunião",
@@ -36,6 +36,18 @@ export default function AtuacaoPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [exporting, setExporting] = useState<null | "pdf" | "excel">(null);
   const [tooltipOpen, setTooltipOpen] = useState<null | "HD" | "HU">(null);
+  const [showExportModal, setShowExportModal] = useState<null | "pdf" | "excel">(null);
+  const [selectedColumns, setSelectedColumns] = useState<AtuacaoColumn[]>([
+    "data",
+    "horarioInicio",
+    "projeto",
+    "atividade",
+    "tipo",
+    "status",
+    "hu",
+    "descricao",
+    "impacto",
+  ]);
 
   const atividadesById = useMemo(() => {
     const map = new Map<string, string>();
@@ -128,43 +140,18 @@ export default function AtuacaoPage() {
           <button
             type="button"
             disabled={loading || exporting !== null || filteredAtuacoes.length === 0}
-            onClick={async () => {
-              setExporting("pdf");
-              try {
-                await exportAtuacoesToPdf({
-                  atuacoes: filteredAtuacoes,
-                  ...exportData,
-                  hdByAtuacaoId,
-                  filename: "atuacoes.pdf",
-                  titulo: "Relatório de Atuações",
-                });
-              } finally {
-                setExporting(null);
-              }
-            }}
+            onClick={() => setShowExportModal("pdf")}
             className="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-lg text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-50"
           >
-            {exporting === "pdf" ? "Exportando PDF..." : "Exportar PDF"}
+            Exportar PDF
           </button>
           <button
             type="button"
             disabled={loading || exporting !== null || filteredAtuacoes.length === 0}
-            onClick={async () => {
-              setExporting("excel");
-              try {
-                await exportAtuacoesToExcel({
-                  atuacoes: filteredAtuacoes,
-                  ...exportData,
-                  hdByAtuacaoId,
-                  filename: "atuacoes.xlsx",
-                });
-              } finally {
-                setExporting(null);
-              }
-            }}
+            onClick={() => setShowExportModal("excel")}
             className="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-lg text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-50"
           >
-            {exporting === "excel" ? "Exportando Excel..." : "Exportar Excel"}
+            Exportar Excel
           </button>
           <Link
             href="/dashboard/atuacao/novo"
@@ -423,6 +410,113 @@ export default function AtuacaoPage() {
                 })}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de seleção de colunas */}
+      {showExportModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 dark:bg-black/70">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+                Selecionar Colunas para Exportação
+              </h2>
+              <button
+                onClick={() => setShowExportModal(null)}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="space-y-3 mb-6">
+              {(Object.keys(COLUMN_LABELS) as AtuacaoColumn[]).map((column) => {
+                // HD não deve aparecer nas opções (é campo de uso interno)
+                if (column === "hd") return null;
+                
+                const isSelected = selectedColumns.includes(column);
+                return (
+                  <label
+                    key={column}
+                    className="flex items-center space-x-3 p-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setSelectedColumns([...selectedColumns, column]);
+                        } else {
+                          setSelectedColumns(selectedColumns.filter((c) => c !== column));
+                        }
+                      }}
+                      className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                    />
+                    <span className="text-sm font-medium text-gray-900 dark:text-white">
+                      {COLUMN_LABELS[column]}
+                    </span>
+                    {column === "hu" && (
+                      <span className="text-xs text-gray-500 dark:text-gray-400">
+                        (Horas Utilizadas)
+                      </span>
+                    )}
+                  </label>
+                );
+              })}
+            </div>
+
+            <div className="flex items-center justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setShowExportModal(null)}
+                className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  if (selectedColumns.length === 0) {
+                    alert("Selecione pelo menos uma coluna");
+                    return;
+                  }
+                  
+                  setExporting(showExportModal);
+                  setShowExportModal(null);
+                  
+                  try {
+                    if (showExportModal === "pdf") {
+                      await exportAtuacoesToPdf({
+                        atuacoes: filteredAtuacoes,
+                        ...exportData,
+                        hdByAtuacaoId,
+                        filename: "atuacoes.pdf",
+                        selectedColumns,
+                        includeSummary: true,
+                        includeDetails: true,
+                      });
+                    } else {
+                      await exportAtuacoesToExcel({
+                        atuacoes: filteredAtuacoes,
+                        ...exportData,
+                        hdByAtuacaoId,
+                        filename: "atuacoes.xlsx",
+                        selectedColumns,
+                      });
+                    }
+                  } finally {
+                    setExporting(null);
+                  }
+                }}
+                disabled={selectedColumns.length === 0}
+                className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {exporting === showExportModal ? "Exportando..." : "Exportar"}
+              </button>
+            </div>
           </div>
         </div>
       )}
