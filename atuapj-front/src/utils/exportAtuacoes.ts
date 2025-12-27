@@ -1,7 +1,8 @@
 import type { Atuacao, StatusAtividade, TipoAtuacao } from "@/types";
 import { parseISODateToLocal, formatDateBR } from "./estimativas";
 
-export type AtuacaoColumn = 
+export type AtuacaoColumn =
+  | "numero"
   | "data"
   | "horarioInicio"
   | "projeto"
@@ -14,6 +15,7 @@ export type AtuacaoColumn =
   | "impacto";
 
 export const COLUMN_LABELS: Record<AtuacaoColumn, string> = {
+  numero: "#",
   data: "Data",
   horarioInicio: "Início",
   projeto: "Projeto",
@@ -27,6 +29,7 @@ export const COLUMN_LABELS: Record<AtuacaoColumn, string> = {
 };
 
 export type AtuacaoExportRow = {
+  numero: number;
   data: string;
   horarioInicio: string;
   projeto: string;
@@ -52,26 +55,32 @@ const statusLabel: Record<StatusAtividade, string> = {
   concluida: "Concluída",
 };
 
-// Função para reordenar colunas: atividade logo após data
+// Função para reordenar colunas: número primeiro, depois data, depois atividade
 function reorderColumns(cols: AtuacaoColumn[]): AtuacaoColumn[] {
   const ordered: AtuacaoColumn[] = [];
   const remaining = [...cols];
-  
-  // Sempre colocar "data" primeiro se existir
+
+  // Sempre colocar "numero" primeiro se existir
+  if (remaining.includes("numero")) {
+    ordered.push("numero");
+    remaining.splice(remaining.indexOf("numero"), 1);
+  }
+
+  // Sempre colocar "data" depois do número se existir
   if (remaining.includes("data")) {
     ordered.push("data");
     remaining.splice(remaining.indexOf("data"), 1);
   }
-  
+
   // Colocar "atividade" logo após "data" se existir
   if (remaining.includes("atividade")) {
     ordered.push("atividade");
     remaining.splice(remaining.indexOf("atividade"), 1);
   }
-  
+
   // Adicionar as demais colunas na ordem original
-  remaining.forEach(col => ordered.push(col));
-  
+  remaining.forEach((col) => ordered.push(col));
+
   return ordered;
 }
 
@@ -81,19 +90,31 @@ function toRows(params: {
   atividadeTitleById: Map<string, string>;
   hdByAtuacaoId?: Map<string, number>;
 }): AtuacaoExportRow[] {
-  return params.atuacoes.map((a) => ({
-    data: a.data,
-    horarioInicio: (a as any).horarioInicio ?? "",
-    projeto: params.projetoTitleById.get(a.projetoId) ?? "",
-    atividade: params.atividadeTitleById.get(a.atividadeId) ?? "",
-    tipo: tipoLabel[a.tipo],
-    status: statusLabel[(a.statusAtividadeNoRegistro ?? "pendente") as StatusAtividade],
-    hd: params.hdByAtuacaoId?.get(a.id) ?? 0,
-    hu: a.horasUtilizadas,
-    descricao: a.descricao ?? "",
-    impacto: a.impactoGerado ?? "",
-    evidenciaUrl: (a as any).evidenciaUrl ?? "",
-  }));
+  return params.atuacoes.map((a, index) => {
+    // Verificar se é atividade avulsa
+    const isAtividadeAvulsa = a.atividadeId.startsWith("__ATIVIDADE_AVULSA__");
+    const atividadeNome = isAtividadeAvulsa 
+      ? "(Avulsa)" 
+      : (params.atividadeTitleById.get(a.atividadeId) ?? "");
+    
+    return {
+      numero: index + 1,
+      data: formatDateBR(a.data),
+      horarioInicio: (a as any).horarioInicio ?? "",
+      projeto: params.projetoTitleById.get(a.projetoId) ?? "",
+      atividade: atividadeNome,
+      tipo: tipoLabel[a.tipo],
+      status:
+        statusLabel[
+          (a.statusAtividadeNoRegistro ?? "pendente") as StatusAtividade
+        ],
+      hd: params.hdByAtuacaoId?.get(a.id) ?? 0,
+      hu: a.horasUtilizadas,
+      descricao: a.descricao ?? "",
+      impacto: a.impactoGerado ?? "",
+      evidenciaUrl: (a as any).evidenciaUrl ?? "",
+    };
+  });
 }
 
 export async function exportAtuacoesToExcel(params: {
@@ -106,15 +127,16 @@ export async function exportAtuacoesToExcel(params: {
 }) {
   const XLSX = await import("xlsx");
   const rows = toRows(params);
-  
+
+  // Se selectedColumns não for fornecido, inclui todas as colunas (exceto HD que é interno)
   const columnsRaw = params.selectedColumns || [
+    "numero",
     "data",
     "horarioInicio",
     "projeto",
     "atividade",
     "tipo",
     "status",
-    "hd",
     "hu",
     "descricao",
     "impacto",
@@ -122,12 +144,19 @@ export async function exportAtuacoesToExcel(params: {
   const columns = reorderColumns(columnsRaw);
 
   const headers = columns.map((col) => COLUMN_LABELS[col]);
-  const data = rows.map((row) => columns.map((col) => {
-    if (col === "hd" || col === "hu") {
-      return row[col];
-    }
-    return String(row[col] || "");
-  }));
+  const data = rows.map((row) =>
+    columns.map((col) => {
+      if (col === "numero") {
+        return row.numero;
+      }
+      if (col === "hd" || col === "hu") {
+        return row[col];
+      }
+      // Para outras colunas, usar type assertion seguro
+      const value = row[col as keyof AtuacaoExportRow];
+      return String(value || "");
+    })
+  );
 
   const worksheet = XLSX.utils.aoa_to_sheet([headers, ...data]);
   const workbook = XLSX.utils.book_new();
@@ -139,6 +168,7 @@ export async function exportAtuacoesToExcel(params: {
 }
 
 const COLUMN_WIDTHS: Record<AtuacaoColumn, number> = {
+  numero: 30,
   data: 70,
   horarioInicio: 55,
   projeto: 140,
@@ -168,23 +198,28 @@ export async function exportAtuacoesToPdf(params: {
 
   const doc = new jsPDF({ orientation: "landscape", unit: "pt", format: "a4" });
   const rows = toRows(params);
-  
-  // Colunas para resumo (sem HD)
-  const summaryColumnsRaw: AtuacaoColumn[] = params.selectedColumns?.filter(col => col !== "hd") || [
-    "data",
-    "horarioInicio",
-    "projeto",
-    "atividade",
-    "tipo",
-    "status",
-    "hu",
-    "descricao",
-    "impacto",
+
+  // Colunas para resumo (sempre inclui número, sem HD, sem descricao/impacto no resumo)
+  const summaryColumnsRaw: AtuacaoColumn[] = [
+    "numero", // Sempre incluir número no resumo
+    ...(params.selectedColumns?.filter(
+      (col) => col !== "hd" && col !== "descricao" && col !== "impacto"
+    ) || [
+      "data",
+      "horarioInicio",
+      "projeto",
+      "atividade",
+      "tipo",
+      "status",
+      "hu",
+    ]),
   ];
   const summaryColumns = reorderColumns(summaryColumnsRaw);
-  
+
   // Colunas para detalhamento (sem HD, com mais detalhes)
-  const detailColumnsRaw: AtuacaoColumn[] = params.selectedColumns?.filter(col => col !== "hd") || [
+  const detailColumnsRaw: AtuacaoColumn[] = params.selectedColumns?.filter(
+    (col) => col !== "hd"
+  ) || [
     "data",
     "horarioInicio",
     "projeto",
@@ -208,6 +243,9 @@ export async function exportAtuacoesToPdf(params: {
     const summaryHeaders = summaryColumns.map((col) => COLUMN_LABELS[col]);
     const summaryBody = rows.map((r) =>
       summaryColumns.map((col) => {
+        if (col === "numero") {
+          return String(r.numero);
+        }
         if (col === "hu") {
           return String(r.hu);
         }
@@ -215,7 +253,10 @@ export async function exportAtuacoesToPdf(params: {
       })
     );
 
-    const totalWidth = summaryColumns.reduce((sum, col) => sum + COLUMN_WIDTHS[col], 0);
+    const totalWidth = summaryColumns.reduce(
+      (sum, col) => sum + COLUMN_WIDTHS[col],
+      0
+    );
     const scale = (doc.internal.pageSize.getWidth() - 80) / totalWidth;
 
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -226,13 +267,23 @@ export async function exportAtuacoesToPdf(params: {
       body: summaryBody,
       styles: { fontSize: 9, cellPadding: 4, overflow: "linebreak" },
       headStyles: { fontSize: 10 },
-      columnStyles: summaryColumns.reduce((acc, col, idx) => {
-        acc[idx.toString()] = {
-          cellWidth: COLUMN_WIDTHS[col] * scale,
-          halign: (col === "hu" ? "center" : "left") as "left" | "center" | "right" | "justify",
-        };
-        return acc;
-      }, {} as Record<string, { cellWidth: number; halign: "left" | "center" | "right" | "justify" }>),
+      columnStyles: summaryColumns.reduce(
+        (acc, col, idx) => {
+          acc[idx.toString()] = {
+            cellWidth: COLUMN_WIDTHS[col] * scale,
+            halign: (col === "hu" || col === "numero" ? "center" : "left") as
+              | "left"
+              | "center"
+              | "right"
+              | "justify",
+          };
+          return acc;
+        },
+        {} as Record<
+          string,
+          { cellWidth: number; halign: "left" | "center" | "right" | "justify" }
+        >
+      ),
     });
 
     currentY = ((doc as any).lastAutoTable?.finalY || currentY + 100) + 10;
@@ -241,7 +292,11 @@ export async function exportAtuacoesToPdf(params: {
     if (summaryColumns.includes("hu")) {
       currentY += 10;
       doc.setFontSize(8);
-      doc.text("Legenda: HU = Horas Utilizadas registradas nesta atuação.", 40, currentY);
+      doc.text(
+        "Legenda: HU = Horas Utilizadas registradas nesta atuação.",
+        40,
+        currentY
+      );
       currentY += 15;
     }
   }
@@ -263,7 +318,7 @@ export async function exportAtuacoesToPdf(params: {
 
     // Formatar detalhamento como texto formalizado
     const marginX = 40;
-    const maxWidth = doc.internal.pageSize.getWidth() - (marginX * 2);
+    const maxWidth = doc.internal.pageSize.getWidth() - marginX * 2;
     doc.setFontSize(10);
 
     params.atuacoes.forEach((atuacao, index) => {
@@ -273,12 +328,20 @@ export async function exportAtuacoesToPdf(params: {
         currentY = 40;
       }
 
-      const projetoNome = params.projetoTitleById.get(atuacao.projetoId) || "Projeto não encontrado";
-      const atividadeNome = params.atividadeTitleById.get(atuacao.atividadeId) || "Atividade não encontrada";
+      const projetoNome =
+        params.projetoTitleById.get(atuacao.projetoId) ||
+        "Projeto não encontrado";
+      const isAtividadeAvulsa = atuacao.atividadeId.startsWith("__ATIVIDADE_AVULSA__");
+      const atividadeNome = isAtividadeAvulsa
+        ? "(Avulsa)"
+        : (params.atividadeTitleById.get(atuacao.atividadeId) || "Atividade não encontrada");
       const dataFormatada = formatDateBR(atuacao.data);
       const horarioInicio = (atuacao as any).horarioInicio || "";
       const tipoTexto = tipoLabel[atuacao.tipo];
-      const statusTexto = statusLabel[(atuacao.statusAtividadeNoRegistro ?? "pendente") as StatusAtividade];
+      const statusTexto =
+        statusLabel[
+          (atuacao.statusAtividadeNoRegistro ?? "pendente") as StatusAtividade
+        ];
       const descricao = atuacao.descricao || "";
       const impacto = atuacao.impactoGerado || "";
       const evidenciaUrl = (atuacao as any).evidenciaUrl || "";
@@ -362,7 +425,9 @@ export async function exportAtuacoesToPdf(params: {
           const textWidth = doc.getTextWidth(line);
           doc.text(line, marginX, currentY);
           // Adicionar link clicável sobre o texto
-          doc.link(marginX, currentY - 10, textWidth, 12, { url: evidenciaUrl });
+          doc.link(marginX, currentY - 10, textWidth, 12, {
+            url: evidenciaUrl,
+          });
           currentY += 12;
         });
         doc.setTextColor(0, 0, 0);
@@ -375,5 +440,3 @@ export async function exportAtuacoesToPdf(params: {
 
   doc.save(params.filename ?? "atuacoes.pdf");
 }
-
-

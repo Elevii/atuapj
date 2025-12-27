@@ -47,9 +47,8 @@ export default function AtuacaoPage() {
     "tipo",
     "status",
     "hu",
-    "descricao",
-    "impacto",
   ]);
+  const [exibirDetalhamentoCompleto, setExibirDetalhamentoCompleto] = useState(false);
 
   const atividadesById = useMemo(() => {
     const map = new Map<string, string>();
@@ -512,18 +511,26 @@ export default function AtuacaoPage() {
 
             <div className="space-y-3 mb-6">
               {(Object.keys(COLUMN_LABELS) as AtuacaoColumn[]).map((column) => {
-                // HD não deve aparecer nas opções (é campo de uso interno)
-                if (column === "hd") return null;
+                // HD e número não devem aparecer nas opções (são campos de uso interno/automático)
+                if (column === "hd" || column === "numero") return null;
                 
+                // Descrição e impacto devem vir desabilitados
+                const isDisabled = column === "descricao" || column === "impacto";
                 const isSelected = selectedColumns.includes(column);
+                
                 return (
                   <label
                     key={column}
-                    className="flex items-center space-x-3 p-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer"
+                    className={`flex items-center space-x-3 p-3 rounded-lg border border-gray-200 dark:border-gray-700 ${
+                      isDisabled 
+                        ? "opacity-50 cursor-not-allowed bg-gray-50 dark:bg-gray-900/30" 
+                        : "hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer"
+                    }`}
                   >
                     <input
                       type="checkbox"
                       checked={isSelected}
+                      disabled={isDisabled}
                       onChange={(e) => {
                         if (e.target.checked) {
                           setSelectedColumns([...selectedColumns, column]);
@@ -531,9 +538,13 @@ export default function AtuacaoPage() {
                           setSelectedColumns(selectedColumns.filter((c) => c !== column));
                         }
                       }}
-                      className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                      className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 disabled:cursor-not-allowed"
                     />
-                    <span className="text-sm font-medium text-gray-900 dark:text-white">
+                    <span className={`text-sm font-medium ${
+                      isDisabled 
+                        ? "text-gray-400 dark:text-gray-500" 
+                        : "text-gray-900 dark:text-white"
+                    }`}>
                       {COLUMN_LABELS[column]}
                     </span>
                     {column === "hu" && (
@@ -541,9 +552,34 @@ export default function AtuacaoPage() {
                         (Horas Utilizadas)
                       </span>
                     )}
+                    {isDisabled && (
+                      <span className="text-xs text-gray-400 dark:text-gray-500 italic">
+                        (Disponível apenas no detalhamento completo)
+                      </span>
+                    )}
                   </label>
                 );
               })}
+            </div>
+
+            {/* Opção de detalhamento completo */}
+            <div className="mb-6 p-4 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/30">
+              <label className="flex items-center space-x-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={exibirDetalhamentoCompleto}
+                  onChange={(e) => setExibirDetalhamentoCompleto(e.target.checked)}
+                  className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                />
+                <div>
+                  <span className="text-sm font-medium text-gray-900 dark:text-white">
+                    Exibir detalhamento Completo
+                  </span>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    Se selecionado, o relatório mostrará o detalhamento completo de todas as atuações com todos os dados disponíveis (incluindo descrição e impacto). Caso contrário, mostrará apenas o resumo com as colunas selecionadas.
+                  </p>
+                </div>
+              </label>
             </div>
 
             <div className="flex items-center justify-end gap-3">
@@ -557,8 +593,8 @@ export default function AtuacaoPage() {
               <button
                 type="button"
                 onClick={async () => {
-                  if (selectedColumns.length === 0) {
-                    alert("Selecione pelo menos uma coluna");
+                  if (!exibirDetalhamentoCompleto && selectedColumns.length === 0) {
+                    alert("Selecione pelo menos uma coluna ou marque 'Exibir detalhamento Completo'");
                     return;
                   }
                   
@@ -572,9 +608,9 @@ export default function AtuacaoPage() {
                         ...exportData,
                         hdByAtuacaoId,
                         filename: "atuacoes.pdf",
-                        selectedColumns,
-                        includeSummary: true,
-                        includeDetails: true,
+                        selectedColumns: exibirDetalhamentoCompleto ? undefined : selectedColumns,
+                        includeSummary: true, // Sempre mostrar resumo
+                        includeDetails: exibirDetalhamentoCompleto, // Detalhamento apenas se marcado
                       });
                     } else {
                       await exportAtuacoesToExcel({
@@ -582,14 +618,14 @@ export default function AtuacaoPage() {
                         ...exportData,
                         hdByAtuacaoId,
                         filename: "atuacoes.xlsx",
-                        selectedColumns,
+                        selectedColumns: exibirDetalhamentoCompleto ? undefined : selectedColumns,
                       });
                     }
                   } finally {
                     setExporting(null);
                   }
                 }}
-                disabled={selectedColumns.length === 0}
+                disabled={!exibirDetalhamentoCompleto && selectedColumns.length === 0}
                 className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {exporting === showExportModal ? "Exportando..." : "Exportar"}
