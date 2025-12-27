@@ -26,7 +26,7 @@ const statusLabel: Record<StatusAtividade, string> = {
 export default function AtuacaoPage() {
   const { projetos } = useProjetos();
   const { atividades } = useAtividades();
-  const { atuacoes, loading, deleteAtuacao } = useAtuacoes();
+  const { atuacoes, loading, deleteAtuacao, getAtuacaoById } = useAtuacoes();
 
   const [filters, setFilters] = useState({
     empresa: "",
@@ -38,6 +38,7 @@ export default function AtuacaoPage() {
   const [exporting, setExporting] = useState<null | "pdf" | "excel">(null);
   const [tooltipOpen, setTooltipOpen] = useState<null | "HD" | "HU">(null);
   const [showExportModal, setShowExportModal] = useState<null | "pdf" | "excel">(null);
+  const [selectedAtuacaoId, setSelectedAtuacaoId] = useState<string | null>(null);
   const [selectedColumns, setSelectedColumns] = useState<AtuacaoColumn[]>([
     "data",
     "horarioInicio",
@@ -405,13 +406,20 @@ export default function AtuacaoPage() {
                   </thead>
                   <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                     {grupo.atuacoes.map((a) => {
-                      const tituloAtividade = atividadesById.get(a.atividadeId) ?? "Atividade removida";
+                      const isAtividadeAvulsa = a.atividadeId.startsWith("__ATIVIDADE_AVULSA__");
+                      const tituloAtividade = isAtividadeAvulsa 
+                        ? "(Atividade avulsa)" 
+                        : (atividadesById.get(a.atividadeId) ?? "Atividade removida");
                       const projeto = projetosById.get(a.projetoId);
                       const nomeProjeto = projeto?.titulo ?? "Projeto removido";
                       const nomeEmpresa = projeto?.empresa ?? "Empresa não informada";
 
                       return (
-                        <tr key={a.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                        <tr 
+                          key={a.id} 
+                          className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors cursor-pointer"
+                          onClick={() => setSelectedAtuacaoId(a.id)}
+                        >
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div className="text-sm text-gray-900 dark:text-white">
                               {formatDate(a.data)}
@@ -450,16 +458,29 @@ export default function AtuacaoPage() {
                               {a.descricao || "-"}
                             </div>
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                            <button
-                              onClick={() => handleDelete(a.id)}
-                              disabled={deletingId === a.id}
-                              className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 disabled:opacity-50"
-                              title="Excluir atuação"
-                            >
-                              {deletingId === a.id ? "Excluindo..." : "Excluir"}
-                            </button>
-                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex items-center justify-end gap-3">
+                          <Link
+                            href={`/dashboard/atuacao/${a.id}/editar`}
+                            className="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300"
+                            title="Editar atuação"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            Editar
+                          </Link>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDelete(a.id);
+                            }}
+                            disabled={deletingId === a.id}
+                            className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 disabled:opacity-50"
+                            title="Excluir atuação"
+                          >
+                            {deletingId === a.id ? "Excluindo..." : "Excluir"}
+                          </button>
+                        </div>
+                      </td>
                         </tr>
                       );
                     })}
@@ -577,6 +598,147 @@ export default function AtuacaoPage() {
           </div>
         </div>
       )}
+
+      {/* Modal de detalhes da atuação */}
+      {selectedAtuacaoId && (() => {
+        const atuacao = getAtuacaoById(selectedAtuacaoId);
+        if (!atuacao) return null;
+        
+        const isAtividadeAvulsa = atuacao.atividadeId.startsWith("__ATIVIDADE_AVULSA__");
+        const tituloAtividade = isAtividadeAvulsa 
+          ? "(Atividade avulsa)" 
+          : (atividadesById.get(atuacao.atividadeId) ?? "Atividade removida");
+        const projeto = projetosById.get(atuacao.projetoId);
+        const nomeProjeto = projeto?.titulo ?? "Projeto removido";
+        const nomeEmpresa = projeto?.empresa ?? "Empresa não informada";
+        const hd = hdByAtuacaoId.get(atuacao.id) ?? 0;
+
+        return (
+          <div 
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 dark:bg-black/70"
+            onClick={() => setSelectedAtuacaoId(null)}
+          >
+            <div 
+              className="bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+                  Detalhes da Atuação
+                </h2>
+                <button
+                  onClick={() => setSelectedAtuacaoId(null)}
+                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Data</p>
+                    <p className="text-base text-gray-900 dark:text-white">{formatDate(atuacao.data)}</p>
+                  </div>
+                  {atuacao.horarioInicio && (
+                    <div>
+                      <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Horário de Início</p>
+                      <p className="text-base text-gray-900 dark:text-white">{atuacao.horarioInicio}</p>
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Empresa</p>
+                  <p className="text-base text-gray-900 dark:text-white">{nomeEmpresa}</p>
+                </div>
+
+                <div>
+                  <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Projeto</p>
+                  <p className="text-base text-gray-900 dark:text-white">{nomeProjeto}</p>
+                </div>
+
+                <div>
+                  <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Atividade</p>
+                  <p className="text-base text-gray-900 dark:text-white">{tituloAtividade}</p>
+                </div>
+
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Tipo</p>
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300">
+                      {tipoLabel[atuacao.tipo]}
+                    </span>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Status</p>
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200">
+                      {statusLabel[atuacao.statusAtividadeNoRegistro]}
+                    </span>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Horas Utilizadas (HU)</p>
+                    <p className="text-base text-gray-900 dark:text-white">{atuacao.horasUtilizadas}h</p>
+                  </div>
+                </div>
+
+                {!isAtividadeAvulsa && (
+                  <div>
+                    <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Horas Disponíveis (HD)</p>
+                    <p className="text-base text-gray-900 dark:text-white">{hd.toFixed(2)}h</p>
+                  </div>
+                )}
+
+                {atuacao.descricao && (
+                  <div>
+                    <p className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">Descrição</p>
+                    <p className="text-base text-gray-900 dark:text-white whitespace-pre-wrap">{atuacao.descricao}</p>
+                  </div>
+                )}
+
+                {atuacao.impactoGerado && (
+                  <div>
+                    <p className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">Impacto Gerado</p>
+                    <p className="text-base text-gray-900 dark:text-white whitespace-pre-wrap">{atuacao.impactoGerado}</p>
+                  </div>
+                )}
+
+                {atuacao.evidenciaUrl && (
+                  <div>
+                    <p className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">Evidência</p>
+                    <a 
+                      href={atuacao.evidenciaUrl} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300 break-all"
+                    >
+                      {atuacao.evidenciaUrl}
+                    </a>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex items-center justify-end gap-3 mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
+                <button
+                  onClick={() => setSelectedAtuacaoId(null)}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600"
+                >
+                  Fechar
+                </button>
+                <Link
+                  href={`/dashboard/atuacao/${atuacao.id}/editar`}
+                  className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700"
+                  onClick={() => setSelectedAtuacaoId(null)}
+                >
+                  Editar Atuação
+                </Link>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }

@@ -87,6 +87,27 @@ class AtuacaoService {
     return novaAtuacao;
   }
 
+  async update(id: string, data: Partial<CreateAtuacaoDTO>): Promise<Atuacao> {
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    
+    const atuacoes = this.getAtuacoesFromStorage();
+    const index = atuacoes.findIndex((a) => a.id === id);
+    
+    if (index === -1) {
+      throw new Error("Atuação não encontrada");
+    }
+    
+    const atuacaoAtualizada: Atuacao = {
+      ...atuacoes[index],
+      ...data,
+      updatedAt: new Date().toISOString(),
+    };
+    
+    atuacoes[index] = atuacaoAtualizada;
+    this.saveAtuacoesToStorage(atuacoes);
+    return atuacaoAtualizada;
+  }
+
   async delete(id: string): Promise<void> {
     await new Promise((resolve) => setTimeout(resolve, 250));
     const atuacoes = this.getAtuacoesFromStorage();

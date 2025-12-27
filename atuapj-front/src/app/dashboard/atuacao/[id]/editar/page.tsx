@@ -2,12 +2,11 @@
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 import { useProjetos } from "@/contexts/ProjetoContext";
 import { useAtividades } from "@/contexts/AtividadeContext";
 import { useAtuacoes } from "@/contexts/AtuacaoContext";
 import { StatusAtividade, TipoAtuacao } from "@/types";
-import { formatTodayISODateLocal } from "@/utils/estimativas";
 
 type Errors = Partial<Record<string, string>>;
 
@@ -29,11 +28,15 @@ const statusLabel: Record<StatusAtividade, string> = {
   concluida: "Concluída",
 };
 
-export default function NovaAtuacaoPage() {
+export default function EditarAtuacaoPage() {
   const router = useRouter();
+  const params = useParams();
+  const atuacaoId = params.id as string;
   const { projetos } = useProjetos();
   const { getAtividadesByProjeto } = useAtividades();
-  const { createAtuacao } = useAtuacoes();
+  const { getAtuacaoById, updateAtuacao } = useAtuacoes();
+
+  const atuacao = getAtuacaoById(atuacaoId);
 
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<Errors>({});
@@ -41,7 +44,7 @@ export default function NovaAtuacaoPage() {
   const [formData, setFormData] = useState({
     projetoId: "",
     atividadeId: "",
-    data: formatTodayISODateLocal(),
+    data: "",
     horarioInicio: "",
     horasUtilizadas: "",
     tipo: "execucao" as TipoAtuacao,
@@ -53,21 +56,29 @@ export default function NovaAtuacaoPage() {
   const [statusManual, setStatusManual] = useState(false);
 
   useEffect(() => {
-    // Pré-seleciona o primeiro projeto (se existir) para reduzir cliques.
-    if (!formData.projetoId && projetos.length > 0) {
-      setFormData((prev) => ({ ...prev, projetoId: projetos[0].id }));
+    if (atuacao) {
+      setFormData({
+        projetoId: atuacao.projetoId,
+        atividadeId: atuacao.atividadeId,
+        data: atuacao.data,
+        horarioInicio: atuacao.horarioInicio || "",
+        horasUtilizadas: atuacao.horasUtilizadas.toString(),
+        tipo: atuacao.tipo,
+        statusAtividadeNoRegistro: atuacao.statusAtividadeNoRegistro,
+        descricao: atuacao.descricao || "",
+        impactoGerado: atuacao.impactoGerado || "",
+        evidenciaUrl: atuacao.evidenciaUrl || "",
+      });
     }
-  }, [formData.projetoId, projetos]);
+  }, [atuacao]);
 
   const atividadesDoProjeto = useMemo(() => {
     if (!formData.projetoId) return [];
     
     const todas = getAtividadesByProjeto(formData.projetoId);
-    // Filtra atividades concluídas, mas sempre mantém a atividade avulsa
     const atividadeAvulsa = todas.find((a) => a.id.startsWith("__ATIVIDADE_AVULSA__"));
     const outras = todas.filter((a) => a.status !== "concluida" && !a.id.startsWith("__ATIVIDADE_AVULSA__"));
     
-    // Atividade avulsa sempre aparece no final
     return atividadeAvulsa ? [...outras, atividadeAvulsa] : outras;
   }, [formData.projetoId, getAtividadesByProjeto]);
 
@@ -78,11 +89,9 @@ export default function NovaAtuacaoPage() {
       concluida: 2,
     };
 
-    // Separa atividade avulsa das outras
     const atividadeAvulsa = atividadesDoProjeto.find((a) => a.id.startsWith("__ATIVIDADE_AVULSA__"));
     const outras = atividadesDoProjeto.filter((a) => !a.id.startsWith("__ATIVIDADE_AVULSA__"));
 
-    // Ordena as outras atividades
     const outrasOrdenadas = outras.sort((a, b) => {
       const pa = prioridade[a.status] ?? 99;
       const pb = prioridade[b.status] ?? 99;
@@ -90,7 +99,6 @@ export default function NovaAtuacaoPage() {
       return a.titulo.localeCompare(b.titulo, "pt-BR");
     });
 
-    // Atividade avulsa sempre no final
     return atividadeAvulsa ? [...outrasOrdenadas, atividadeAvulsa] : outrasOrdenadas;
   }, [atividadesDoProjeto]);
 
@@ -100,30 +108,6 @@ export default function NovaAtuacaoPage() {
 
   const isAtividadeAvulsa = atividadeSelecionada?.id.startsWith("__ATIVIDADE_AVULSA__") ?? false;
   const horasEstimadas = isAtividadeAvulsa ? Infinity : (atividadeSelecionada?.horasAtuacao ?? 0);
-  const horasUtilizadasAtuais = atividadeSelecionada?.horasUtilizadas ?? 0;
-  const horasNovaAtuacao = parseFloat(formData.horasUtilizadas || "0") || 0;
-  const totalHorasAposSalvar = horasUtilizadasAtuais + horasNovaAtuacao;
-  const saldoAposSalvar = isAtividadeAvulsa ? Infinity : (horasEstimadas - totalHorasAposSalvar);
-
-  useEffect(() => {
-    // Default do registro: "Em execução", a menos que a atividade já esteja "Concluída".
-    if (!atividadeSelecionada) return;
-    setStatusManual(false);
-    setFormData((prev) => ({
-      ...prev,
-      statusAtividadeNoRegistro:
-        atividadeSelecionada.status === "concluida" ? "concluida" : "em_execucao",
-    }));
-  }, [atividadeSelecionada]);
-
-  useEffect(() => {
-    // Se a atividade selecionada não pertence ao projeto atual, reseta.
-    if (!formData.atividadeId) return;
-    const exists = atividadesDoProjeto.some((a) => a.id === formData.atividadeId);
-    if (!exists) {
-      setFormData((prev) => ({ ...prev, atividadeId: "" }));
-    }
-  }, [atividadesDoProjeto, formData.atividadeId]);
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
@@ -160,9 +144,14 @@ export default function NovaAtuacaoPage() {
       return;
     }
 
+    if (!atuacao) {
+      setErrors({ submit: "Atuação não encontrada" });
+      return;
+    }
+
     setIsLoading(true);
     try {
-      await createAtuacao({
+      await updateAtuacao(atuacaoId, {
         projetoId: formData.projetoId,
         atividadeId: formData.atividadeId,
         data: formData.data,
@@ -178,12 +167,35 @@ export default function NovaAtuacaoPage() {
 
       router.push("/dashboard/atuacao");
     } catch (error) {
-      console.error("Erro ao registrar atuação:", error);
-      setErrors({ submit: "Erro ao registrar atuação. Tente novamente." });
+      console.error("Erro ao atualizar atuação:", error);
+      setErrors({ submit: "Erro ao atualizar atuação. Tente novamente." });
     } finally {
       setIsLoading(false);
     }
   };
+
+  if (!atuacao) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <Link
+            href="/dashboard/atuacao"
+            className="text-sm text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200 mb-2 inline-flex items-center"
+          >
+            <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+            Voltar para atuações
+          </Link>
+        </div>
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-12 text-center">
+          <p className="text-gray-600 dark:text-gray-400">
+            Atuação não encontrada
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -198,10 +210,10 @@ export default function NovaAtuacaoPage() {
           Voltar para atuações
         </Link>
         <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-          Registrar Atuação
+          Editar Atuação
         </h1>
         <p className="mt-2 text-gray-600 dark:text-gray-400">
-          Registre o que foi feito em uma atividade
+          Edite os dados da atuação registrada
         </p>
       </div>
 
@@ -226,7 +238,6 @@ export default function NovaAtuacaoPage() {
                 name="projetoId"
                 value={formData.projetoId}
                 onChange={(e) => {
-                  // trocar projeto deve resetar atividade
                   handleChange(e);
                   setFormData((prev) => ({ ...prev, projetoId: e.target.value, atividadeId: "" }));
                 }}
@@ -293,7 +304,7 @@ export default function NovaAtuacaoPage() {
                       Detalhes da atuação
                     </h2>
                     <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                      Preencha primeiro os campos obrigatórios para registrar a atuação.
+                      Edite os campos conforme necessário.
                     </p>
                   </div>
                   <span className="text-xs text-gray-500 dark:text-gray-400">
@@ -302,7 +313,6 @@ export default function NovaAtuacaoPage() {
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                  {/* Obrigatórios */}
                   <div className="lg:col-span-2 space-y-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
@@ -418,14 +428,10 @@ export default function NovaAtuacaoPage() {
                             {errors.statusAtividadeNoRegistro}
                           </p>
                         )}
-                        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                          Esse status será salvo na atuação e aplicado na atividade do projeto.
-                        </p>
                       </div>
                     </div>
                   </div>
 
-                  {/* Contexto da atividade */}
                   <div className="lg:col-span-1">
                     <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/30 p-4 space-y-4">
                       <div>
@@ -434,52 +440,6 @@ export default function NovaAtuacaoPage() {
                         </p>
                         <p className="text-lg font-semibold text-gray-900 dark:text-white">
                           {!atividadeSelecionada ? "-" : isAtividadeAvulsa ? "Ilimitadas" : `${horasEstimadas}h`}
-                        </p>
-                      </div>
-
-                      <div>
-                        <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
-                          Após salvar
-                        </p>
-                        <div
-                          className={`w-full px-4 py-3 border rounded-lg ${
-                            !atividadeSelecionada
-                              ? "border-gray-300 bg-gray-50 text-gray-700 dark:border-gray-600 dark:bg-gray-900/30 dark:text-gray-300"
-                              : isAtividadeAvulsa
-                              ? "border-blue-300 bg-blue-50 text-blue-800 dark:border-blue-900/40 dark:bg-blue-900/20 dark:text-blue-300"
-                              : saldoAposSalvar >= 0
-                              ? "border-green-300 bg-green-50 text-green-800 dark:border-green-900/40 dark:bg-green-900/20 dark:text-green-300"
-                              : "border-red-300 bg-red-50 text-red-800 dark:border-red-900/40 dark:bg-red-900/20 dark:text-red-300"
-                          }`}
-                        >
-                          {!atividadeSelecionada ? (
-                            <span>-</span>
-                          ) : isAtividadeAvulsa ? (
-                            <span>
-                              <span className="font-semibold">Atividade avulsa</span>
-                              <br />
-                              <span className="text-xs">Sem limite de horas</span>
-                            </span>
-                          ) : saldoAposSalvar >= 0 ? (
-                            <span>
-                              Disponíveis:{" "}
-                              <span className="font-semibold">
-                                {saldoAposSalvar.toFixed(2)}h
-                              </span>
-                            </span>
-                          ) : (
-                            <span>
-                              Ultrapassadas:{" "}
-                              <span className="font-semibold">
-                                {Math.abs(saldoAposSalvar).toFixed(2)}h
-                              </span>
-                            </span>
-                          )}
-                        </div>
-                        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                          {isAtividadeAvulsa
-                            ? "Use para registrar tarefas não mapeadas, reuniões ou planejamentos."
-                            : "Calculado a partir de HE e HU acumulado."}
                         </p>
                       </div>
 
@@ -503,9 +463,6 @@ export default function NovaAtuacaoPage() {
                               onChange={handleChange}
                               className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors dark:bg-gray-700 dark:text-white"
                             />
-                            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                              Usado em relatórios
-                            </p>
                           </div>
 
                           <div>
@@ -540,7 +497,7 @@ export default function NovaAtuacaoPage() {
                               onChange={handleChange}
                               rows={2}
                               className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors dark:bg-gray-700 dark:text-white dark:placeholder-gray-400"
-                              placeholder="Ex.: Redução de tempo, melhoria de performance, alinhamento com stakeholder..."
+                              placeholder="Ex.: Redução de tempo, melhoria de performance..."
                             />
                           </div>
 
@@ -560,9 +517,6 @@ export default function NovaAtuacaoPage() {
                               className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors dark:bg-gray-700 dark:text-white dark:placeholder-gray-400"
                               placeholder="https://exemplo.com/evidencia"
                             />
-                            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                              URL da evidência que comprova a atuação realizada
-                            </p>
                           </div>
                         </div>
                       </details>
@@ -583,7 +537,7 @@ export default function NovaAtuacaoPage() {
                   disabled={isLoading}
                   className="px-6 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
-                  {isLoading ? "Salvando..." : "Registrar Atuação"}
+                  {isLoading ? "Salvando..." : "Salvar Alterações"}
                 </button>
               </div>
             </>
@@ -593,5 +547,4 @@ export default function NovaAtuacaoPage() {
     </div>
   );
 }
-
 

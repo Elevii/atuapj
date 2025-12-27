@@ -114,8 +114,32 @@ export function AtividadeProvider({ children }: { children: ReactNode }) {
     return atividades.find((a) => a.id === id);
   };
 
+  // ID especial para atividade avulsa (disponível em todos os projetos)
+  const ATIVIDADE_AVULSA_ID = "__ATIVIDADE_AVULSA__";
+
+  // Cria uma atividade avulsa virtual (não salva no storage)
+  const criarAtividadeAvulsa = (projetoId: string): Atividade => {
+    const hoje = new Date().toISOString().split("T")[0];
+    return {
+      id: `${ATIVIDADE_AVULSA_ID}_${projetoId}`,
+      projetoId,
+      titulo: "Atividade Avulsa",
+      dataInicio: hoje,
+      horasAtuacao: 0, // Sem limite de horas
+      horasUtilizadas: 0,
+      dataFimEstimada: hoje,
+      custoTarefa: 0,
+      status: "em_execucao" as StatusAtividade,
+      createdAt: hoje,
+      updatedAt: hoje,
+    };
+  };
+
   const getAtividadesByProjeto = (projetoId: string): Atividade[] => {
-    return atividades.filter((a) => a.projetoId === projetoId);
+    const atividadesDoProjeto = atividades.filter((a) => a.projetoId === projetoId);
+    // Sempre inclui a atividade avulsa no final da lista
+    const atividadeAvulsa = criarAtividadeAvulsa(projetoId);
+    return [...atividadesDoProjeto, atividadeAvulsa];
   };
 
   return (

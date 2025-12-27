@@ -18,8 +18,10 @@ interface AtuacaoContextType {
   loading: boolean;
   refreshAtuacoes: () => Promise<void>;
   createAtuacao: (data: CreateAtuacaoDTO) => Promise<Atuacao>;
+  updateAtuacao: (id: string, data: Partial<CreateAtuacaoDTO>) => Promise<Atuacao>;
   deleteAtuacao: (id: string) => Promise<void>;
   getAtuacoesByProjeto: (projetoId: string) => Atuacao[];
+  getAtuacaoById: (id: string) => Atuacao | undefined;
 }
 
 const AtuacaoContext = createContext<AtuacaoContextType | undefined>(undefined);
@@ -108,6 +110,39 @@ export function AtuacaoProvider({ children }: { children: ReactNode }) {
     [syncAtividadeHorasEStatus]
   );
 
+  const updateAtuacao = useCallback(
+    async (id: string, data: Partial<CreateAtuacaoDTO>): Promise<Atuacao> => {
+      const atuacaoAntiga = atuacoes.find((a) => a.id === id);
+      if (!atuacaoAntiga) {
+        throw new Error("Atuação não encontrada");
+      }
+
+      const atuacaoAtualizada = await atuacaoService.update(id, data);
+      const all = await atuacaoService.findAll();
+      setAtuacoes(all);
+
+      // Sincroniza horas/status da atividade se a atividade mudou ou horas mudaram
+      if (data.atividadeId !== undefined || data.horasUtilizadas !== undefined) {
+        const atividadeId = data.atividadeId ?? atuacaoAntiga.atividadeId;
+        await syncAtividadeHorasEStatus({
+          atividadeId,
+          atuacoesSnapshot: all,
+        });
+        
+        // Se mudou de atividade, também sincroniza a atividade antiga
+        if (data.atividadeId && data.atividadeId !== atuacaoAntiga.atividadeId) {
+          await syncAtividadeHorasEStatus({
+            atividadeId: atuacaoAntiga.atividadeId,
+            atuacoesSnapshot: all,
+          });
+        }
+      }
+
+      return atuacaoAtualizada;
+    },
+    [atuacoes, syncAtividadeHorasEStatus]
+  );
+
   const deleteAtuacao = useCallback(
     async (id: string) => {
       const atuacao = atuacoes.find((a) => a.id === id);
@@ -130,6 +165,11 @@ export function AtuacaoProvider({ children }: { children: ReactNode }) {
     [atuacoes]
   );
 
+  const getAtuacaoById = useCallback(
+    (id: string) => atuacoes.find((a) => a.id === id),
+    [atuacoes]
+  );
+
   return (
     <AtuacaoContext.Provider
       value={{
@@ -137,8 +177,10 @@ export function AtuacaoProvider({ children }: { children: ReactNode }) {
         loading,
         refreshAtuacoes,
         createAtuacao,
+        updateAtuacao,
         deleteAtuacao,
         getAtuacoesByProjeto,
+        getAtuacaoById,
       }}
     >
       {children}
