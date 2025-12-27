@@ -226,12 +226,12 @@ export async function exportAtuacoesToPdf(params: {
       styles: { fontSize: 9, cellPadding: 4, overflow: "linebreak" },
       headStyles: { fontSize: 10 },
       columnStyles: summaryColumns.reduce((acc, col, idx) => {
-        acc[idx] = {
+        acc[idx.toString()] = {
           cellWidth: COLUMN_WIDTHS[col] * scale,
-          halign: col === "hu" ? "center" : "left",
+          halign: (col === "hu" ? "center" : "left") as "left" | "center" | "right" | "justify",
         };
         return acc;
-      }, {} as Record<number, { cellWidth: number; halign: string }>),
+      }, {} as Record<string, { cellWidth: number; halign: "left" | "center" | "right" | "justify" }>),
     });
 
     currentY = ((doc as any).lastAutoTable?.finalY || currentY + 100) + 10;
@@ -284,13 +284,13 @@ export async function exportAtuacoesToPdf(params: {
 
       // Título da atuação
       doc.setFontSize(11);
-      doc.setFont(undefined, "bold");
+      doc.setFont("helvetica", "bold");
       doc.text(`${index + 1}. ${atividadeNome}`, marginX, currentY);
       currentY += 12;
 
       // Informações básicas
       doc.setFontSize(10);
-      doc.setFont(undefined, "normal");
+      doc.setFont("helvetica", "normal");
       const infoLines = [
         `Data: ${dataFormatada}${horarioInicio ? ` às ${horarioInicio}` : ""}`,
         `Projeto: ${projetoNome}`,
@@ -311,10 +311,10 @@ export async function exportAtuacoesToPdf(params: {
       // Descrição
       if (descricao) {
         currentY += 5;
-        doc.setFont(undefined, "bold");
+        doc.setFont("helvetica", "bold");
         doc.text("Descrição:", marginX, currentY);
         currentY += 12;
-        doc.setFont(undefined, "normal");
+        doc.setFont("helvetica", "normal");
         const descLines = doc.splitTextToSize(descricao, maxWidth);
         descLines.forEach((line: string) => {
           if (currentY > doc.internal.pageSize.getHeight() - 50) {
@@ -329,10 +329,10 @@ export async function exportAtuacoesToPdf(params: {
       // Impacto gerado
       if (impacto) {
         currentY += 5;
-        doc.setFont(undefined, "bold");
+        doc.setFont("helvetica", "bold");
         doc.text("Impacto gerado:", marginX, currentY);
         currentY += 12;
-        doc.setFont(undefined, "normal");
+        doc.setFont("helvetica", "normal");
         const impactoLines = doc.splitTextToSize(impacto, maxWidth);
         impactoLines.forEach((line: string) => {
           if (currentY > doc.internal.pageSize.getHeight() - 50) {
@@ -347,18 +347,21 @@ export async function exportAtuacoesToPdf(params: {
       // Evidência (URL)
       if (evidenciaUrl) {
         currentY += 5;
-        doc.setFont(undefined, "bold");
+        doc.setFont("helvetica", "bold");
         doc.text("Evidência:", marginX, currentY);
         currentY += 12;
-        doc.setFont(undefined, "normal");
+        doc.setFont("helvetica", "normal");
         doc.setTextColor(0, 0, 255);
         const urlLines = doc.splitTextToSize(evidenciaUrl, maxWidth);
-        urlLines.forEach((line: string) => {
+        urlLines.forEach((line: string, lineIndex: number) => {
           if (currentY > doc.internal.pageSize.getHeight() - 50) {
             doc.addPage();
             currentY = 40;
           }
-          doc.text(line, marginX, currentY, { url: evidenciaUrl });
+          const textWidth = doc.getTextWidth(line);
+          doc.text(line, marginX, currentY);
+          // Adicionar link clicável sobre o texto
+          doc.link(marginX, currentY - 10, textWidth, 12, { url: evidenciaUrl });
           currentY += 12;
         });
         doc.setTextColor(0, 0, 0);

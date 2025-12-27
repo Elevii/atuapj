@@ -115,7 +115,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
               </div>
               <div className="hidden md:block text-left">
                 <p className="text-sm font-medium text-gray-900 dark:text-white">
-                  João Silva
+                  Fulano da Silva
                 </p>
                 <p className="text-xs text-gray-500 dark:text-gray-400">
                   Freelancer
@@ -166,4 +166,3 @@ export default function Header({ onMenuClick }: HeaderProps) {
     </header>
   );
 }
-
