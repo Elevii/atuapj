@@ -78,6 +78,10 @@ export interface Atuacao {
    * Status da atividade no momento do registro.
    */
   statusAtividadeNoRegistro: StatusAtividade;
+  /**
+   * Título personalizado para atividade avulsa (até 30 caracteres)
+   */
+  tituloAvulsa?: string;
   descricao?: string;
   impactoGerado?: string;
   /**
@@ -97,6 +101,10 @@ export interface CreateAtuacaoDTO {
   horasUtilizadas: number;
   tipo: TipoAtuacao;
   statusAtividadeNoRegistro: StatusAtividade;
+  /**
+   * Título personalizado para atividade avulsa (até 30 caracteres)
+   */
+  tituloAvulsa?: string;
   descricao?: string;
   impactoGerado?: string;
   evidenciaUrl?: string;

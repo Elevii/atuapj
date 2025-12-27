@@ -64,6 +64,13 @@ export default function NovoProjetoPage() {
     return parseFloat(value.replace(/\./g, "").replace(",", "."));
   };
 
+  // Função para parsear horas úteis (aceita ponto ou vírgula como separador decimal)
+  const parseHorasUteis = (value: string): number => {
+    // Substitui vírgula por ponto e remove espaços
+    const normalized = value.replace(",", ".").trim();
+    return parseFloat(normalized);
+  };
+
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setErrors({});
@@ -107,7 +114,7 @@ export default function NovoProjetoPage() {
       }
     }
 
-    const horasUteis = parseInt(formData.horasUteisPorDia, 10);
+    const horasUteis = parseHorasUteis(formData.horasUteisPorDia);
     if (!formData.horasUteisPorDia) {
       newErrors.horasUteisPorDia = "Horas úteis por dia é obrigatório";
     } else if (isNaN(horasUteis) || horasUteis < 1 || horasUteis > 24) {
@@ -128,7 +135,7 @@ export default function NovoProjetoPage() {
         tipoCobranca: formData.tipoCobranca,
         valorHora: formData.tipoCobranca === "horas" ? parseCurrency(formData.valorHora) : undefined,
         valorFixo: formData.tipoCobranca === "fixo" ? parseCurrency(formData.valorFixo) : undefined,
-        horasUteisPorDia: parseInt(formData.horasUteisPorDia, 10),
+        horasUteisPorDia: parseHorasUteis(formData.horasUteisPorDia),
       });
       
       // Redirecionar para detalhes do projeto criado
@@ -332,10 +339,7 @@ export default function NovoProjetoPage() {
             <input
               id="horasUteisPorDia"
               name="horasUteisPorDia"
-              type="number"
-              min="1"
-              max="24"
-              step="1"
+              type="text"
               required
               value={formData.horasUteisPorDia}
               onChange={handleChange}
@@ -344,7 +348,7 @@ export default function NovoProjetoPage() {
                   ? "border-red-500 focus:ring-red-500 focus:border-red-500"
                   : "border-gray-300"
               }`}
-              placeholder="8"
+              placeholder="8 ou 8,5 ou 8.5"
             />
             {errors.horasUteisPorDia && (
               <p className="mt-1 text-sm text-red-600 dark:text-red-400">

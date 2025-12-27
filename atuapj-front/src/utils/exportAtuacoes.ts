@@ -94,7 +94,7 @@ function toRows(params: {
     // Verificar se é atividade avulsa
     const isAtividadeAvulsa = a.atividadeId.startsWith("__ATIVIDADE_AVULSA__");
     const atividadeNome = isAtividadeAvulsa 
-      ? "(Avulsa)" 
+      ? (a.tituloAvulsa || "(Avulsa)")
       : (params.atividadeTitleById.get(a.atividadeId) ?? "");
     
     return {
@@ -333,7 +333,7 @@ export async function exportAtuacoesToPdf(params: {
         "Projeto não encontrado";
       const isAtividadeAvulsa = atuacao.atividadeId.startsWith("__ATIVIDADE_AVULSA__");
       const atividadeNome = isAtividadeAvulsa
-        ? "(Avulsa)"
+        ? (atuacao.tituloAvulsa || "(Avulsa)")
         : (params.atividadeTitleById.get(atuacao.atividadeId) || "Atividade não encontrada");
       const dataFormatada = formatDateBR(atuacao.data);
       const horarioInicio = (atuacao as any).horarioInicio || "";

@@ -33,7 +33,7 @@ export default function EditarProjetoPage() {
         empresa: projeto.empresa,
         titulo: projeto.titulo,
         valorHora: (projeto.valorHora ?? 0).toFixed(2).replace(".", ","),
-        horasUteisPorDia: String(projeto.horasUteisPorDia ?? 8),
+        horasUteisPorDia: String(projeto.horasUteisPorDia ?? 8).replace(".", ","),
       });
     }
   }, [projeto]);
@@ -86,6 +86,13 @@ export default function EditarProjetoPage() {
     return parseFloat(value.replace(/\./g, "").replace(",", "."));
   };
 
+  // Função para parsear horas úteis (aceita ponto ou vírgula como separador decimal)
+  const parseHorasUteis = (value: string): number => {
+    // Substitui vírgula por ponto e remove espaços
+    const normalized = value.replace(",", ".").trim();
+    return parseFloat(normalized);
+  };
+
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setErrors({});
@@ -116,7 +123,7 @@ export default function EditarProjetoPage() {
       }
     }
 
-    const horasUteis = parseInt(formData.horasUteisPorDia, 10);
+    const horasUteis = parseHorasUteis(formData.horasUteisPorDia);
     if (!formData.horasUteisPorDia) {
       newErrors.horasUteisPorDia = "Horas úteis por dia é obrigatório";
     } else if (isNaN(horasUteis) || horasUteis < 1 || horasUteis > 24) {
@@ -134,7 +141,7 @@ export default function EditarProjetoPage() {
         empresa: formData.empresa.trim(),
         titulo: formData.titulo.trim(),
         valorHora: parseCurrency(formData.valorHora),
-        horasUteisPorDia: parseInt(formData.horasUteisPorDia, 10),
+        horasUteisPorDia: parseHorasUteis(formData.horasUteisPorDia),
       });
 
       router.push(`/dashboard/projetos/${projetoId}`);
@@ -287,10 +294,7 @@ export default function EditarProjetoPage() {
             <input
               id="horasUteisPorDia"
               name="horasUteisPorDia"
-              type="number"
-              min="1"
-              max="24"
-              step="1"
+              type="text"
               required
               value={formData.horasUteisPorDia}
               onChange={handleChange}
@@ -299,7 +303,7 @@ export default function EditarProjetoPage() {
                   ? "border-red-500 focus:ring-red-500 focus:border-red-500"
                   : "border-gray-300"
               }`}
-              placeholder="8"
+              placeholder="8 ou 8,5 ou 8.5"
             />
             {errors.horasUteisPorDia && (
               <p className="mt-1 text-sm text-red-600 dark:text-red-400">

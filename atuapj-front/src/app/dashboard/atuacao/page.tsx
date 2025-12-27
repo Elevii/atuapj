@@ -407,7 +407,7 @@ export default function AtuacaoPage() {
                     {grupo.atuacoes.map((a) => {
                       const isAtividadeAvulsa = a.atividadeId.startsWith("__ATIVIDADE_AVULSA__");
                       const tituloAtividade = isAtividadeAvulsa 
-                        ? "(Atividade avulsa)" 
+                        ? (a.tituloAvulsa || "(Atividade avulsa)")
                         : (atividadesById.get(a.atividadeId) ?? "Atividade removida");
                       const projeto = projetosById.get(a.projetoId);
                       const nomeProjeto = projeto?.titulo ?? "Projeto removido";
@@ -642,7 +642,7 @@ export default function AtuacaoPage() {
         
         const isAtividadeAvulsa = atuacao.atividadeId.startsWith("__ATIVIDADE_AVULSA__");
         const tituloAtividade = isAtividadeAvulsa 
-          ? "(Atividade avulsa)" 
+          ? (atuacao.tituloAvulsa || "(Atividade avulsa)")
           : (atividadesById.get(atuacao.atividadeId) ?? "Atividade removida");
         const projeto = projetosById.get(atuacao.projetoId);
         const nomeProjeto = projeto?.titulo ?? "Projeto removido";

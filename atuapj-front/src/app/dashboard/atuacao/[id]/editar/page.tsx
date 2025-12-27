@@ -8,7 +8,9 @@ import { useAtividades } from "@/contexts/AtividadeContext";
 import { useAtuacoes } from "@/contexts/AtuacaoContext";
 import { StatusAtividade, TipoAtuacao } from "@/types";
 
-type Errors = Partial<Record<string, string>>;
+type Errors = Partial<Record<string, string>> & {
+  tituloAvulsa?: string;
+};
 
 const tipoOptions: { value: TipoAtuacao; label: string }[] = [
   { value: "reuniao", label: "Reunião" },
@@ -49,6 +51,7 @@ export default function EditarAtuacaoPage() {
     horasUtilizadas: "",
     tipo: "execucao" as TipoAtuacao,
     statusAtividadeNoRegistro: "em_execucao" as StatusAtividade,
+    tituloAvulsa: "",
     descricao: "",
     impactoGerado: "",
     evidenciaUrl: "",
@@ -65,6 +68,7 @@ export default function EditarAtuacaoPage() {
         horasUtilizadas: atuacao.horasUtilizadas.toString(),
         tipo: atuacao.tipo,
         statusAtividadeNoRegistro: atuacao.statusAtividadeNoRegistro,
+        tituloAvulsa: atuacao.tituloAvulsa || "",
         descricao: atuacao.descricao || "",
         impactoGerado: atuacao.impactoGerado || "",
         evidenciaUrl: atuacao.evidenciaUrl || "",
@@ -139,6 +143,15 @@ export default function EditarAtuacaoPage() {
     if (!formData.statusAtividadeNoRegistro)
       nextErrors.statusAtividadeNoRegistro = "Status é obrigatório";
 
+    // Validação do título para atividade avulsa
+    if (isAtividadeAvulsa) {
+      if (!formData.tituloAvulsa || !formData.tituloAvulsa.trim()) {
+        nextErrors.tituloAvulsa = "Título é obrigatório para atividade avulsa";
+      } else if (formData.tituloAvulsa.trim().length > 30) {
+        nextErrors.tituloAvulsa = "Título deve ter no máximo 30 caracteres";
+      }
+    }
+
     if (Object.keys(nextErrors).length > 0) {
       setErrors(nextErrors);
       return;
@@ -160,6 +173,7 @@ export default function EditarAtuacaoPage() {
         horasUtilizadas: horas,
         tipo: formData.tipo,
         statusAtividadeNoRegistro: formData.statusAtividadeNoRegistro,
+        tituloAvulsa: isAtividadeAvulsa ? formData.tituloAvulsa.trim() : undefined,
         descricao: formData.descricao.trim() || undefined,
         impactoGerado: formData.impactoGerado.trim() || undefined,
         evidenciaUrl: formData.evidenciaUrl.trim() || undefined,
@@ -294,6 +308,45 @@ export default function EditarAtuacaoPage() {
               )}
             </div>
           </div>
+
+          {/* Campo de título para atividade avulsa */}
+          {formData.projetoId && formData.atividadeId && isAtividadeAvulsa && (
+            <div>
+              <label
+                htmlFor="tituloAvulsa"
+                className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+              >
+                Título da atividade avulsa <span className="text-red-500">*</span>
+              </label>
+              <input
+                id="tituloAvulsa"
+                name="tituloAvulsa"
+                type="text"
+                maxLength={30}
+                required
+                value={formData.tituloAvulsa}
+                onChange={handleChange}
+                className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors dark:bg-gray-700 dark:border-gray-600 dark:text-white ${
+                  errors.tituloAvulsa ? "border-red-500" : "border-gray-300"
+                }`}
+                placeholder="Ex: Reunião com cliente, Planejamento sprint..."
+              />
+              <div className="mt-1 flex items-center justify-between">
+                {errors.tituloAvulsa ? (
+                  <p className="text-sm text-red-600 dark:text-red-400">
+                    {errors.tituloAvulsa}
+                  </p>
+                ) : (
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    Descreva brevemente a atividade avulsa
+                  </p>
+                )}
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  {formData.tituloAvulsa.length}/30
+                </p>
+              </div>
+            </div>
+          )}
 
           {formData.projetoId && formData.atividadeId && (
             <>
